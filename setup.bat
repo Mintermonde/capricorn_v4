@@ -16,6 +16,13 @@ exit /b 1
 
 :install
 %PY% tools\install.py
+if exist "%~dp0visual\package.json" (
+    where npm >nul 2>nul && (
+        echo.
+        echo [Capri] Installing visual interface dependencies (Node.js/Electron)...
+        cd /d "%~dp0visual" && call npm install && cd /d "%~dp0"
+    )
+)
 pause
 exit /b
 
