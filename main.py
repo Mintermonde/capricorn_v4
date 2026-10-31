@@ -20,8 +20,9 @@ from ai import AI
 from local_ai import LocalAI
 from persona import line
 from avatar import Avatar
+import bridge_client
 from voice import (Listener, Speaker, default_input_name, google_stt, input_devices, make_glitch_sound,
-                   play_sound_async)
+                   make_blip_sound, play_sound_async)
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE, "config.json")
@@ -44,6 +45,7 @@ DEFAULTS = {
     "teleport_on_answer": True,
     "ai_provider": "gemini",
     "gemini_api_key": "",
+    "gemini_base_url": "",
     "anthropic_api_key": "",
     "model": "gemini-3.5-flash",
     "wake_words": [
@@ -183,14 +185,116 @@ class Capri(QObject):
         self.last_activity = time.time()
         self.recent_chatter = []
         self.listener = None
+        self._config_mtime = os.path.getmtime(CONFIG_PATH) if os.path.exists(CONFIG_PATH) else 0.0
         self.glitch_wav = os.path.join(tempfile.gettempdir(), "capri_glitch.wav")
         try:
             make_glitch_sound(self.glitch_wav)
         except Exception:
             self.glitch_wav = None
+        self.blip_wav = os.path.join(tempfile.gettempdir(), "capri_blip.wav")
+        try:
+            make_blip_sound(self.blip_wav)
+        except Exception:
+            self.blip_wav = None
+
+    def reload_config_if_changed(self):
+        try:
+            if not os.path.exists(CONFIG_PATH):
+                return
+            mtime = os.path.getmtime(CONFIG_PATH)
+            if hasattr(self, "_config_mtime") and mtime <= self._config_mtime:
+                return
+            self._config_mtime = mtime
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                new_cfg = json.load(f)
+            self.cfg = new_cfg
+            if hasattr(self, "ai") and self.ai:
+                self.ai.update_config(new_cfg)
+            if hasattr(self, "local") and self.local:
+                self.local.cfg = new_cfg
+                self.local.model = new_cfg.get("local_model", "qwen2.5vl:3b")
+            log.info("Config reloaded dynamically: model=%s, provider=%s", new_cfg.get("model"), new_cfg.get("ai_provider"))
+        except Exception as e:
+            log.warning("Could not reload config: %s", e)
+
+    def _start_cmd_server(self):
+        from http.server import HTTPServer, BaseHTTPRequestHandler
+        assistant = self
+
+        class CommandHandler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                if self.path == "/cmd":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        raw = self.rfile.read(length).decode("utf-8", "replace").strip()
+                        text = ""
+                        try:
+                            body = json.loads(raw)
+                            if isinstance(body, dict):
+                                text = body.get("text", "").strip()
+                            elif isinstance(body, str):
+                                text = body.strip()
+                        except Exception:
+                            m = re.search(r'["\']?text["\']?\s*:\s*["\']([^"\']+)["\']', raw)
+                            if m:
+                                text = m.group(1).strip()
+                            else:
+                                text = raw.strip()
+                        text = re.sub(r"\s*\(Note for you[\s\S]*?\)", "", text, flags=re.IGNORECASE).strip()
+                        log.info("HTTP /cmd received: %s", text)
+
+                        from games import game_manager
+                        game_res = game_manager.match_and_execute(text)
+                        if game_res and game_res.get("ok"):
+                            if assistant.blip_wav:
+                                play_sound_async(assistant.blip_wav)
+                            assistant.subtitle.emit(game_res["reply_text"])
+                            bridge_client.send_say_async(game_res["reply_text"], face="smug", action="success", hold=2500)
+                            resp = json.dumps({"handled": True, "reply": game_res["reply_text"]}).encode("utf-8")
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(resp)
+                            return
+
+                        rep = assistant.actions.handle(text)
+                        if rep is not None:
+                            face, act = bridge_client.map_face_and_action(rep.text, rep.action)
+                            assistant.say(rep.text, face=face, action=act)
+                            resp = json.dumps({"handled": True, "reply": rep.text}).encode("utf-8")
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(resp)
+                            return
+
+                        resp = json.dumps({"handled": False}).encode("utf-8")
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(resp)
+                    except Exception as e:
+                        log.exception("HTTP /cmd error: %s", e)
+                        self.send_response(500)
+                        self.end_headers()
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, format, *args):
+                pass
+
+        try:
+            log.info("Starting HTTP cmd server on 127.0.0.1:47824...")
+            srv = HTTPServer(("127.0.0.1", 47824), CommandHandler)
+            log.info("HTTP cmd server listening on 127.0.0.1:47824")
+            srv.serve_forever()
+        except Exception as e:
+            log.warning("Could not start cmd server on port 47824: %s", e)
 
     def start(self):
         threading.Thread(target=self._worker, daemon=True).start()
+        threading.Thread(target=self._start_cmd_server, daemon=True).start()
         if self.local:
             threading.Thread(target=self.local.start_server, daemon=True).start()
         model =os.path.join(BASE, self.cfg["vosk_model"])
@@ -242,7 +346,13 @@ class Capri(QObject):
 
     # ----- события микрофона (поток слушателя) -----
     def has_wake(self, text):
-        return bool(self.wake_re.search(text.lower()))
+        t = text.lower()
+        if self.wake_re.search(t):
+            return True
+        for w in re.findall(r"[а-яёa-z]+", t):
+            if w.startswith(("капр", "кепр", "кэпр", "capr")):
+                return True
+        return False
 
     def strip_wake(self, text):
         t = text.lower()
@@ -250,15 +360,19 @@ class Capri(QObject):
         for last in self.wake_re.finditer(t):
             pass
         if last:
-            t = t[last.end():]  # берём то, что сказано строго после имени (до него могло быть общение с друзьями или шум)
+            t = t[last.end():]  # берём то, что сказано строго после имени
         t = self.wake_re.sub(" ", t)
+        t = re.sub(r"\b(капр\w*|кепр\w*|кэпр\w*|capr\w*)\b", " ", t, flags=re.IGNORECASE)
         return re.sub(r"^[\s,.!?]+|[\s,.!?]+$", "", t)
 
     def appear(self, seconds):
-        if self.glitch_wav:
+        if self.blip_wav:
+            play_sound_async(self.blip_wav)
+        elif self.glitch_wav and self.cfg.get("voice_enabled", False):
             play_sound_async(self.glitch_wav)
         self.summon.emit()
         self.mode.emit("listening", float(seconds))
+        bridge_client.send_status_async("listening")
 
     # ----- перебивание -----
     def is_echo(self, text):
@@ -292,6 +406,27 @@ class Capri(QObject):
 
     def on_final(self, text, audio):
         now = time.time()
+        woke = self.has_wake(text)
+        log.info("on_final услышано: '%s' (woke=%s, awake_left=%.1fs)", text, woke, max(0.0, self.awake_until - now))
+
+        # Если активна игра (например War Thunder), проверяем бинды макросов даже без имени Капри!
+        try:
+            from games import game_manager
+            gid, _ = game_manager.get_current_game()
+            if gid:
+                cmd_try = self.strip_wake(text) if woke else text
+                match = game_manager.match_and_execute(cmd_try)
+                if match and match.get("ok"):
+                    log.info("Game macro fast match: %s -> %s", cmd_try, match["keys_str"])
+                    self.awake_until = 0
+                    if self.blip_wav:
+                        play_sound_async(self.blip_wav)
+                    self.subtitle.emit(match["reply_text"])
+                    bridge_client.send_say_async(match["reply_text"], face="smug", action="success", hold=2000)
+                    return
+        except Exception as e:
+            log.warning("Game mode check error in on_final: %s", e)
+
         if self.actions.autoscroll_active() and STOP_RE.search(text.lower()) and not self.is_echo(text):
             # во время автопрокрутки «стоп» слышим и без имени
             self.actions.stop_background()
@@ -303,7 +438,6 @@ class Capri(QObject):
             self.interrupt()
         if now - self.speech_end < 1.0 and self.is_echo(text):
             return
-        woke = self.has_wake(text)
         if not woke and now > self.awake_until:
             return
         cmd = self.strip_wake(text) if woke else text
@@ -320,6 +454,7 @@ class Capri(QObject):
                 self.appear(self.cfg["listen_window_seconds"])
             return
         self.awake_until = 0
+        bridge_client.send_status_async("thinking", cmd)
         self.jobs.put(("voice", cmd, audio, woke))
 
     def on_listener_error(self, err):
@@ -409,6 +544,7 @@ class Capri(QObject):
                 self.say(line("crash"))
 
     def _process(self, job):
+        self.reload_config_if_changed()
         kind = job[0]
         if kind == "chatter":
             text = self.chatter_line()
@@ -453,6 +589,21 @@ class Capri(QObject):
         self.subtitle.emit("> " + cmd)
         log.info("Команда (быстро): %s", cmd)
 
+        # 0. Игровой режим (Game Mode): если активна игра (например War Thunder / aces.exe)
+        try:
+            from games import game_manager
+            game_res = game_manager.match_and_execute(cmd)
+            if game_res and game_res.get("ok"):
+                log.info("Game macro in _process: %s -> %s", cmd, game_res["keys_str"])
+                if self.blip_wav:
+                    play_sound_async(self.blip_wav)
+                self.subtitle.emit(game_res["reply_text"])
+                bridge_client.send_say_async(game_res["reply_text"], face="smug", action="success", hold=2000)
+                self.mode.emit("idle", 0.0)
+                return
+        except Exception as e:
+            log.warning("Game mode check error in _process: %s", e)
+
         # 1. Быстрый путь: если это системная команда ПК — выполняем мгновенно без задержки сети
         reply = self.actions.handle(cmd)
 
@@ -476,11 +627,12 @@ class Capri(QObject):
         if reply is not None and reply.action in ("mic_info", "mic_next", "mic_mute", "mic_unmute"):
             reply = self.mic_command(reply.action)
         if reply is None:
+            answer = None
             if self.cfg.get("enable_ai") and self.ai.available:
-                reply = Reply(self.ai.ask(cmd), "answer")
-            else:
-                answer = self.local.ask(cmd) if self.local else None
-                reply = Reply(answer, "answer") if answer else self.actions.fallback(cmd, force_search=bool(self.local))
+                answer = self.ai.ask(cmd)
+            if not answer and self.local:
+                answer = self.local.ask(cmd)
+            reply = Reply(answer, "answer") if answer else self.actions.fallback(cmd, force_search=bool(self.local))
         if reply.action == "answer" and self.cfg.get("teleport_on_answer"):
             self.hop.emit()  # отвечает, скача по экрану красной молнией
         if reply.action == "wave":
@@ -492,7 +644,8 @@ class Capri(QObject):
             time.sleep(0.8)
             self.roam.emit()
             time.sleep(1.5)
-        if self.say(reply.text):
+        face, act = bridge_client.map_face_and_action(reply.text, reply.action)
+        if self.say(reply.text, face=face, action=act):
             return  # перебили — уже слушаем новую команду
 
         if reply.action == "mic_mute":
@@ -508,14 +661,28 @@ class Capri(QObject):
             if follow > 0:
                 self.awake_until = time.time() + follow
                 self.mode.emit("listening", follow)
+                bridge_client.send_status_async("listening")
             else:
                 self.awake_until = 0.0
                 self.mode.emit("idle", 0.0)
+                bridge_client.send_status_async("idle")
 
-    def say(self, text):
-        """Озвучивает текст. Возвращает True, если Капри перебили."""
+    def say(self, text, face=None, action=None):
+        """Озвучивает / отображает текст. Возвращает True, если Капри перебили."""
         log.info("Капри: %s", text)
         self.subtitle.emit(text)
+
+        # Отправляем в Electron визуальный интерфейс (текст, каноничное лицо, анимация)
+        bridge_client.send_say_async(text, face=face, action=action)
+
+        # Если голос вырезан/отключен — играем приятный блип подтверждения (вместо синтеза речи)
+        if not self.cfg.get("voice_enabled", False):
+            if self.blip_wav:
+                play_sound_async(self.blip_wav)
+            self.speaking = False
+            self.speech_end = time.time()
+            return False
+
         self.mode.emit("speaking", 0.0)
         barge_in = self.cfg.get("barge_in") and self.listener
         if self.listener and not barge_in:
@@ -553,7 +720,22 @@ def tray_icon():
     return QIcon(pm)
 
 
+def check_single_instance():
+    try:
+        import ctypes
+        mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "CapriCapricornVoiceAssistantMutex")
+        if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+            return None
+        return mutex
+    except Exception:
+        return True
+
+
 def main():
+    _instance_mutex = check_single_instance()
+    if not _instance_mutex:
+        log.warning("Капри уже запущена.")
+        sys.exit(0)
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     cfg = load_config()
@@ -561,16 +743,17 @@ def main():
     avatar = Avatar(os.path.join(BASE, "assets"))
     avatar.hide_after = float(cfg["hide_after_seconds"])
     capri = Capri(cfg)
-    capri.summon.connect(avatar.summon)
-    capri.vanish.connect(avatar.vanish)
-    capri.mode.connect(avatar.set_mode)
-    capri.subtitle.connect(avatar.set_subtitle)
+    if cfg.get("ui_mode") != "electron":
+        capri.summon.connect(avatar.summon)
+        capri.vanish.connect(avatar.vanish)
+        capri.mode.connect(avatar.set_mode)
+        capri.subtitle.connect(avatar.set_subtitle)
+        capri.anim.connect(avatar.play_anim)
+        capri.roam.connect(avatar.start_roam)
+        capri.hop.connect(avatar.start_hopping)
+        capri.move_to.connect(avatar.move_to_named)
+        avatar.clicked.connect(capri.call_from_click)
     capri.quit_app.connect(app.quit)
-    capri.anim.connect(avatar.play_anim)
-    capri.roam.connect(avatar.start_roam)
-    capri.hop.connect(avatar.start_hopping)
-    capri.move_to.connect(avatar.move_to_named)
-    avatar.clicked.connect(capri.call_from_click)
 
     def ask_text():
         text, ok = QInputDialog.getText(None, "Капри", "Команда или вопрос:")

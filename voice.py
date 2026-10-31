@@ -174,6 +174,7 @@ class Listener(threading.Thread):
                     audio = bytes(buf)
                     buf.clear()
                     if text:
+                        log.info("Vosk trans: %s", text)
                         self.on_final(text, audio)
                 else:
                     part = json.loads(rec.PartialResult()).get("partial", "")
@@ -535,6 +536,25 @@ def make_glitch_sound(path):
         noise = rnd.uniform(-1, 1) if (i // 400) % 3 == 0 else 0
         v = int(2200 * env * (0.6 * sq + 0.5 * noise))
         frames += struct.pack("<h", max(-32767, min(32767, v)))
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(bytes(frames))
+
+
+def make_blip_sound(path):
+    """Приятный короткий цифровой 'блип' подтверждения (двухтональный колокольчик)."""
+    frames = bytearray()
+    sr = 22050
+    tones = [(880, 0.05), (1320, 0.07)]
+    for freq, dur in tones:
+        n = int(sr * dur)
+        for i in range(n):
+            env = (1.0 - i / n) ** 1.8
+            val = math.sin(2 * math.pi * freq * i / sr) + 0.25 * math.sin(4 * math.pi * freq * i / sr)
+            sample = int(3200 * env * val)
+            frames += struct.pack("<h", max(-32767, min(32767, sample)))
     with wave.open(path, "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)

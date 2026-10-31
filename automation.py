@@ -75,29 +75,34 @@ def is_process_running(proc_name):
 
 
 def process_window(exe_names):
-    """Главное видимое окно процесса (по имени exe). Нужно для программ, у которых заголовок окна —
-    не их название: у Telegram Desktop это название открытого чата."""
+    """Главное окно процесса (по имени exe). Если окно свернуто в трей — восстанавливает его."""
     import psutil
     exe_names = {n.lower() for n in exe_names}
     found = []
+    hidden_candidate = []
 
     def check(hwnd):
-        if not u.IsWindowVisible(hwnd):
-            return
         pid = wintypes.DWORD()
         u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         try:
-            if psutil.Process(pid.value).name().lower() not in exe_names:
+            pname = psutil.Process(pid.value).name().lower()
+            if pname not in exe_names:
                 return
         except Exception:
             return
         r = wintypes.RECT()
         u.GetWindowRect(hwnd, ctypes.byref(r))
         w, h = r.right - r.left, r.bottom - r.top
-        if w >= 200 and h >= 200:
-            found.append(hwnd)
-        elif window_title(hwnd) and w > 50 and h > 50:
-            found.append(hwnd)
+        vis = bool(u.IsWindowVisible(hwnd))
+        if vis:
+            if w >= 200 and h >= 200:
+                found.append(hwnd)
+            elif window_title(hwnd) and w > 50 and h > 50:
+                found.append(hwnd)
+        else:
+            # Окно свернуто в трей (как Telegram или Discord)
+            if w >= 200 and h >= 200:
+                hidden_candidate.append(hwnd)
 
     @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
     def cb(hwnd, _):
@@ -106,10 +111,23 @@ def process_window(exe_names):
 
     u.EnumWindows(cb, 0)
     if not found:
-        hdesk = u.OpenInputDesktop(0, False, 0x01FF)
-        if hdesk:
-            u.EnumDesktopWindows(hdesk, cb, 0)
-            u.CloseDesktop(hdesk)
+        for desk_name in (None, "Default"):
+            hdesk = u.OpenInputDesktop(0, False, 0x01FF) if desk_name is None else u.OpenDesktopW(desk_name, 0, False, 0x01FF)
+            if hdesk:
+                u.EnumDesktopWindows(hdesk, cb, 0)
+                u.CloseDesktop(hdesk)
+                if found:
+                    break
+
+    if not found and hidden_candidate:
+        # Восстанавливаем свернутое в трей окно
+        hw = hidden_candidate[0]
+        u.ShowWindow(hw, 9)  # SW_RESTORE
+        u.ShowWindow(hw, 5)  # SW_SHOW
+        u.SetForegroundWindow(hw)
+        time.sleep(0.15)
+        found.append(hw)
+
     return found[0] if found else None
 
 
@@ -151,10 +169,13 @@ def _find_by_title(keywords):
 
     u.EnumWindows(cb, 0)
     if not found:
-        hdesk = u.OpenInputDesktop(0, False, 0x01FF)
-        if hdesk:
-            u.EnumDesktopWindows(hdesk, cb, 0)
-            u.CloseDesktop(hdesk)
+        for desk_name in (None, "Default"):
+            hdesk = u.OpenInputDesktop(0, False, 0x01FF) if desk_name is None else u.OpenDesktopW(desk_name, 0, False, 0x01FF)
+            if hdesk:
+                u.EnumDesktopWindows(hdesk, cb, 0)
+                u.CloseDesktop(hdesk)
+                if found:
+                    break
     return min(found, key=lambda x: x[0])[1] if found else None
 
 

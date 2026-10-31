@@ -31,7 +31,16 @@ class Reply:
     action: str | None = None    # "hide" / "quit"
 
 
+def strip_note(text):
+    if not text:
+        return ""
+    return re.sub(r"\s*\(Note for you[\s\S]*?\)", "", text, flags=re.IGNORECASE).strip()
+
+
 def norm(s):
+    if not s:
+        return ""
+    s = strip_note(s)
     s = s.lower().replace("ё", "е")
     s = re.sub(r"[^\w\s\.\-:/]", " ", s)
     return re.sub(r"\s+", " ", s).strip()
@@ -186,9 +195,13 @@ class AppIndex:
     def candidates(self, query, aliases, limit=4):
         """Подходящие приложения, лучшие первыми: [(оценка, название, цель)]."""
         q = norm(query)
-        variants = {q, translit(q)}
+        variants = {q, translit(q), q.replace(" ", ""), translit(q.replace(" ", ""))}
         if q in aliases:
-            variants.add(norm(aliases[q]))
+            al = norm(aliases[q])
+            variants.add(al)
+            variants.add(al.replace(" ", ""))
+            variants.add(translit(al))
+            variants.add(translit(al.replace(" ", "")))
         with self.lock:
             items = list(self.items.items())
         scored = {}
@@ -1195,9 +1208,30 @@ class Actions:
              self.search_field),
             (r"^(нажми|нажать|зажми|жми|набери сочетание) (?P<k>.+)$", self.press),
             # --- Telegram: прямая отправка сообщений одной фразой («напиши в тг лехе привет», «отправь в телеграм маме я дома») ---
-            (r"(?i)^(напиши|отправь|скинь|ответь)( мне)?\s+"
+            # 1. Формат: напиши в тг [кому] [текст]
+            (r"(?i)^(напиши|отправь|скинь|ответь|передай)( мне)?\s+"
              r"(в\s+|на\s+)(телеграм\w*|telegram|телег\w*|тг)\s+"
-             r"(?P<name>[а-яa-z0-9_-]+)\s+(?P<text>.+)$", self.direct_send),
+             r"(?P<name>[а-яёa-z0-9_\s-]+?)\s*[:,-]?\s+(?P<text>.+)$", self.direct_send),
+            # 2. Формат: напиши [кому] в тг [текст]
+            (r"(?i)^(напиши|отправь|скинь|ответь|передай)( мне)?\s+"
+             r"(?P<name>[а-яёa-z0-9_-]+)\s+"
+             r"(в\s+|на\s+)(телеграм\w*|telegram|телег\w*|тг)\s*[:,-]?\s+(?P<text>.+)$", self.direct_send),
+            # --- Яндекс Музыка: открытие плейлистов («открой плейлист мне понравилось и включи первый трек») ---
+            (r"(?i)^(открой|включи|поставь|запусти)( мне)?\s+"
+             r"плейлист\s+(?P<pl>.+?)"
+             r"(\s+и\s+(включи|поставь|запусти|играй)\s+(?P<play>первый трек|трек|музыку|его)?)?"
+             r"(\s+(в|на)\s+(яндекс\s*музык\w*|yandex\s*music))?$", self.yandex_music_playlist),
+            (r"(?i)^(открой|перейди на|зайди в|запусти)\s+(яндекс\s*музык\w*|yandex\s*music)\s+"
+             r"(и\s+)?(открой|включи|поставь)?\s*плейлист\s+(?P<pl>.+)$", self.yandex_music_playlist),
+            (r"(?i)^(включи|поставь|запусти|играй)( мне)?\s+"
+             r"(яндекс\s*музык\w*|yandex\s*music)\s*(?P<pl>.*)$", self.yandex_music_play),
+            # --- Игровой режим (War Thunder / DirectInput макросы) ---
+            (r"(?i)^(включи|активируй|переключи на)?\s*игровой режим\s*(для\s+(?P<game>.+))?$", self.game_mode_cmd),
+            (r"(?i)^(выключи|отключи|выйди из)\s+игрово(го|й)\s+режим\w*$", self.game_mode_cmd),
+            (r"(?i)^(какие|покажи|список)?\s*(бинды|макросы|кнопки)\s*(в\s+игре|для\s+игры)?$", self.game_mode_cmd),
+            (r"(?i)\b(лтц|ловушк\w*|теплов\w*\s+ловушк\w*|от\s+отца|элтэцэ)\b", self.game_action_cmd),
+            (r"(?i)\b(закрылк\w*|шасси)\b", self.game_action_cmd),
+            (r"(?i)\b(захват\w*|парл|радар\w*|рлс\w*|олс|вооружен\w*)\b", self.game_action_cmd),
             (rf"^({automation.TYPE_VERBS})\s+\S", self.type_cmd),
             # --- YouTube каналы (например: «найди на ютубе канал мармок», «открой ютуб канал mrbeast», «канал куплинов на ютубе») ---
             (r"^(открой|запусти|включи|найди|поищи|покажи|перейди на|зайди на|ищи)( мне)?\s+"
@@ -1264,6 +1298,8 @@ class Actions:
              r"(\s+(на|в)\s+(ютуб\w*|youtube))?"
              r"(\s+(с|со|про|о|об|где|на тему))?"
              r"\s+(?P<q>.+)$", self.video),
+            (r"^(попроси антигравити|задача для антигравити|антигравити|antigravity)\b\s*(?P<task>.+)?", self.antigravity_task),
+            (r"^(создай|сделай|напиши|сгенерируй|отредактируй|измени|почини|удали)\b.*?(файл\w*|папк\w*|скрипт\w*|код|программ\w*|проект\w*|документ\w*|на рабочем столе|на десктопе)", self.antigravity_task),
             (r"^(найди|поищи|загугли|погугли|ищи)( в интернете| в гугле| в google)? (?P<q>.+)$", self.search),
             (r"^(открой|запусти|включи|зайди( на| в)?|перейди( на| в)?|покажи) (?P<t>.+)$", self.open),
             (r"^((сними|снять) (задачу|процесс\w*)|(заверши|завершить|убей|убить|останови|закрой) "
@@ -1273,12 +1309,20 @@ class Actions:
             (r"^(закрой|заверши|выключи|убей) (?P<t>.+)$", self.close),
             (r"который час|сколько времени|сколько сейчас времени|время сейчас", self.time),
             (r"какое (сегодня )?число|какая (сегодня )?дата|какой сегодня день", self.date),
+            (r"посмотри на экран|что на экране|взгляни на экран|что на мониторе|что тут открыто|что за ошибка|проанализируй экран|что у меня на экране|посмотри что тут|глянь на экран", self.look_at_screen),
             (r"скриншот|скрин экрана|сделай скрин", self.screenshot),
         ]
 
     def handle(self, cmd):
         c = norm(cmd)
         cancel_ensure()  # новая команда — старая проверка «заиграло ли видео» больше не нужна
+        try:
+            from games import game_manager
+            game_res = game_manager.match_and_execute(c)
+            if game_res and game_res.get("ok"):
+                return Reply(game_res.get("reply_text", "Выполнила игровое действие"))
+        except Exception as e:
+            log.warning("Game mode match error in actions.handle: %s", e)
         if self.pending:
             action, self.pending = self.pending, None
             if re.match(r"^(да|давай|подтверждаю|конечно|ага)\b", c):
@@ -1534,11 +1578,128 @@ class Actions:
         """«напиши в тг лехе привет» — открывает чат и отправляет сообщение."""
         name = m.group("name").strip()
         text = m.group("text").strip()
+        text = re.sub(r"^[:,-]\s*", "", text).strip()
         chat_rep = self.chat(c, re.match(r"(?P<name>.+)", name))
         if chat_rep and chat_rep.action == "fail":
             return chat_rep
-        time.sleep(0.4)
-        return self.type_cmd(f"напиши {text}", None)
+        time.sleep(0.5)
+        if automation.find_window(("telegram",)):
+            automation.wait_and_focus(("telegram",), timeout=3)
+            time.sleep(0.15)
+        automation.input_text(text)
+        time.sleep(0.2)
+        send_keys(["enter"])
+        return Reply(f"Отправила сообщение в Telegram для {name.capitalize()}: «{text}»")
+
+    def yandex_music_playlist(self, c, m):
+        """Открытие плейлистов в Яндекс Музыке: «открой плейлист мне понравилось и включи первый трек»."""
+        pl = (m.groupdict().get("pl") or "").strip().lower()
+        should_play = bool(m.groupdict().get("play") or "включи" in c.lower() or "поставь" in c.lower() or "запусти" in c.lower())
+
+        pl = re.sub(r"^(плейлист|альбом|сборник)\s+", "", pl).strip()
+        pl = re.sub(r"\s+(в|на)\s+(яндекс\s*музык\w*|yandex\s*music)$", "", pl).strip()
+        pl = pl.strip("\"'«» ")
+
+        is_favorite = any(w in pl for w in ("мне понравилось", "понравилось", "понравивш", "любим", "моя музык", "мои трек"))
+
+        if is_favorite or not pl:
+            url = "https://music.yandex.ru/collection/favorite"
+            display_name = "Мне понравилось"
+        elif "дня" in pl or "плейлист дня" in pl:
+            url = "https://music.yandex.ru/users/yamusic-daily/playlists/1"
+            display_name = "Плейлист дня"
+        elif "дежавю" in pl:
+            url = "https://music.yandex.ru/users/yamusic-daily/playlists/2"
+            display_name = "Дежавю"
+        elif "премьера" in pl:
+            url = "https://music.yandex.ru/users/yamusic-daily/playlists/3"
+            display_name = "Премьера"
+        elif "чарт" in pl:
+            url = "https://music.yandex.ru/chart"
+            display_name = "Чарт"
+        else:
+            url = f"https://music.yandex.ru/search?text={urllib.parse.quote(pl)}&type=playlists"
+            display_name = pl.capitalize()
+
+        webbrowser.open(url)
+
+        if should_play:
+            def auto_play():
+                time.sleep(3.2)
+                media.control("play")
+                time.sleep(0.3)
+                send_keys(["space"])
+            threading.Thread(target=auto_play, daemon=True).start()
+            return Reply(f"Открыла плейлист «{display_name}» в Яндекс Музыке и включила воспроизведение!")
+
+        return Reply(f"Открыла плейлист «{display_name}» в Яндекс Музыке.")
+
+    def yandex_music_play(self, c, m):
+        """«включи яндекс музыку», «поставь яндекс музыку», «запусти яндекс музыку»."""
+        pl = (m.groupdict().get("pl") or "").strip()
+        if pl and "плейлист" in pl.lower():
+            return self.yandex_music_playlist(c, m)
+
+        # 1. Приоритет: открываем десктопное приложение Яндекс Музыки
+        ym_target = self.apps.get("яндекс музыка") or self.apps.get("яндекс музыку") or self.apps.get("yandex music")
+        if not ym_target:
+            found = self.index.find("яндекс музыка", self.aliases)
+            if found:
+                ym_target = found[1]
+
+        if ym_target:
+            self._run(ym_target)
+            def auto_play_app():
+                time.sleep(2.5)
+                media.control("play")
+            threading.Thread(target=auto_play_app, daemon=True).start()
+            return Reply("Запустила приложение Яндекс Музыка и включила воспроизведение!")
+
+        # 2. Если десктопное приложение не установлено — открываем браузер
+        webbrowser.open("https://music.yandex.ru/collection/favorite")
+        def auto_play_web():
+            time.sleep(3.2)
+            media.control("play")
+            time.sleep(0.3)
+            send_keys(["space"])
+        threading.Thread(target=auto_play_web, daemon=True).start()
+        return Reply("Открыла Яндекс Музыку в браузере и включила воспроизведение!")
+
+    def game_mode_cmd(self, c, m):
+        """Управление игровым режимом и макросами."""
+        from games import game_manager
+        c_low = c.lower()
+        if any(w in c_low for w in ("выключи", "отключи", "выйди")):
+            game_manager.config["auto_detect"] = False
+            game_manager.config["active_game"] = None
+            game_manager.save()
+            return Reply("Игровой режим отключен.")
+
+        if any(w in c_low for w in ("какие бинды", "список биндов", "бинды", "макросы", "кнопки")):
+            gid, gdata = game_manager.get_current_game()
+            if not gid:
+                return Reply("Игровой режим не активен. Запустите игру (например War Thunder) или включите режим командой «игровой режим War Thunder».")
+            b_list = [f"• {phrase} -> {' + '.join(keys).upper()}" for phrase, keys in list(gdata.get("bindings", {}).items())[:12]]
+            return Reply(f"Бинды для {gdata.get('name', gid)}:\n" + "\n".join(b_list))
+
+        # Включение режима
+        game = m.groupdict().get("game") if hasattr(m, "groupdict") else None
+        target_gid = "war_thunder"
+        if game and "war" in game.lower():
+            target_gid = "war_thunder"
+        game_manager.config["auto_detect"] = True
+        game_manager.config["active_game"] = target_gid
+        game_manager.save()
+        gdata = game_manager.config["games"].get(target_gid, {})
+        return Reply(f"Игровой режим активирован: {gdata.get('name', target_gid)}. Голосовые макросы (ЛТЦ, закрылки, шасси и др.) готовы!")
+
+    def game_action_cmd(self, c, m=None):
+        """Прямой вызов игрового действия / макроса (ЛТЦ, ловушки, закрылки и т.д.)."""
+        from games import game_manager
+        res = game_manager.match_and_execute(c)
+        if res and res.get("ok"):
+            return Reply(res.get("reply_text", "Выполнила игровое действие"))
+        return None
 
     def type_cmd(self, c, m):
         """«напиши привет», «напиши ему привет» — печатает в активное окно и жмёт Enter (в чате это отправка)."""
@@ -1601,7 +1762,10 @@ class Actions:
             search_name = stem_name(name)
         else:
             search_name = None
-        if not automation.telegram_open_chat(index=index or (None if search_name else 1), name=search_name):
+        opened = automation.telegram_open_chat(index=index or (None if search_name else 1), name=search_name)
+        if not opened and search_name and raw_name and search_name.lower() != raw_name.lower():
+            opened = automation.telegram_open_chat(name=raw_name)
+        if not opened:
             # чат не открылся — дальше по цепочке ничего не печатаем, чтобы не написать не туда
             return Reply(line("chat_not_found", t=raw_name or f"номер {index or 1}"), "fail")
         self.telegram_opened_at = time.time()
@@ -1824,7 +1988,8 @@ class Actions:
     def open(self, c, m):
         if re.search(r"ютуб|youtube", c):
             self.youtube_opened_at = time.time()  # следующее «напиши …» будет поиском на YouTube
-        t = re.sub(r"^(мне |пожалуйста |программу |приложение )", "", m.group("t"))
+        t = re.sub(r"^(мне |пожалуйста |программу |приложение |клиент |игру )", "", m.group("t"), flags=re.IGNORECASE)
+        t = strip_note(t)
         t = re.sub(r" пожалуйста$", "", t).strip()
         if t in ("звук",):
             return None
@@ -1869,19 +2034,26 @@ class Actions:
             webbrowser.open(target_url)
             return Reply(line("open", t=t.title() if t else "сайт"))
 
-        # Пользователь не указал слово «сайт»: сначала проверяем локальные приложения
-        if t in self.apps:
-            self._run(self.apps[t])
-            return Reply(line("open", t=t))
+        # --- ПРИОРИТЕТ 1: ЛОКАЛЬНЫЕ ДЕСКТОПНЫЕ ПРИЛОЖЕНИЯ ---
+        t_norm = norm(t)
+        # 1.1 Прямой поиск в self.apps (включая алиасы)
+        app_target = self.apps.get(t_norm) or self.apps.get(t)
+        if not app_target and t_norm in self.aliases:
+            alias_val = self.aliases[t_norm]
+            app_target = self.apps.get(alias_val) or self.apps.get(norm(alias_val))
+
+        if app_target:
+            self._run(app_target)
+            return Reply(line("open", t=t.title()))
 
         self.index.ready.wait(timeout=8)
         options = self.index.candidates(t, self.aliases)
 
-        # Если локальное приложение найдено с уверенным соответствием — запускаем его
-        if options and (options[0][0] >= 0.82 or (options[0][0] >= 0.72 and (len(options) == 1 or options[0][0] - options[1][0] >= 0.08))):
+        # 1.2 Если локальное приложение найдено — запускаем его
+        if options and (options[0][0] >= 0.70 or (options[0][0] >= 0.65 and (len(options) == 1 or options[0][0] - options[1][0] >= 0.08))):
             top = options[0]
             close = [o for o in options[1:] if top[0] - o[0] < 0.1]
-            if top[0] >= 1.0 or not close:  # одно явно подходит — запускаем
+            if top[0] >= 0.95 or not close:  # одно явно подходит — запускаем
                 started = self.index.launch_best(t, [top])
                 return Reply(line("launch", t=started) if started else line("app_missing", t=t))
             # несколько похожих — спрашиваем, какое открыть
@@ -1891,8 +2063,7 @@ class Actions:
             listed = ", ".join(f"{ords[i]} — {nm}" for i, nm in enumerate(names))
             return Reply(line("choose_app", t=listed), "ask")
 
-        # Если локальное приложение НЕ найдено:
-        # 1. Проверяем, не контакт ли это активного окна Telegram
+        # 1.3 Проверяем, не контакт ли это активного окна Telegram
         NON_CONTACT_WORDS = re.compile(
             r"\b(видео|видос|ролик|клип|фильм|сериал|песн\w*|трек|музык\w*|"
             r"ютуб\w*|youtube|сайт\w*|страниц\w*|вкладк\w*|браузер\w*|гугл\w*|google|"
@@ -1907,18 +2078,30 @@ class Actions:
                 if res and res.action != "fail":
                     return res
 
-        # 2. Если это не контакт Telegram и не локальное приложение — значит, это сайт!
+        # --- ПРИОРИТЕТ 2: ЕСЛИ ДЕСКТОПНОГО ПРИЛОЖЕНИЯ НЕТ ---
+        # 2.1 Проверяем, не сайт ли это из списка известных сайтов (self.sites)
         target_url = self._get_known_site(t)
         if target_url:
             webbrowser.open(target_url)
             return Reply(line("open", t=t.title()))
 
-        # 3. Динамический резолвинг любого сайта через интернет
+        # 2.2 Если запрос явно был про запуск программы/игры («запусти ...», «открой игру ...», «открой программу ...») —
+        # сообщаем, что такое приложение не найдено на компьютере, вместо открытия случайного сайта!
+        is_explicit_app_request = bool(
+            re.search(r"^(запусти|вруби|врубай|поиграем в|сыграем в)\b", c)
+            or re.search(r"\b(игр\w*|программ\w*|приложени\w*|клиент|лаунчер\w*)\b", m.group(0), re.IGNORECASE)
+            or t_norm in self.aliases
+        )
+        if is_explicit_app_request:
+            return Reply(line("app_missing", t=t))
+
+        # 2.3 Если это поисковый/навигационный запрос к известному веб-ресурсу через Google Suggest:
         target_url = resolve_site_url(t)
-        if target_url:
+        if target_url and not target_url.startswith("https://www.google.com/search"):
             webbrowser.open(target_url)
             return Reply(line("open", t=t.title()))
 
+        # 2.4 Иначе говорим, что приложение не найдено
         return Reply(line("app_missing", t=t))
 
     def kill_process(self, c, m):
@@ -2240,6 +2423,23 @@ class Actions:
         path = os.path.join(folder, f"screen_{datetime.datetime.now():%Y%m%d_%H%M%S}.png")
         ImageGrab.grab(all_screens=True).save(path)
         return Reply(line("screenshot"))
+
+    def look_at_screen(self, c, m):
+        if self.local:
+            import bridge_client
+            bridge_client.send_say_async("Сканирую экран...", face="look", action="curious", hold=3000)
+            answer = self.local.ask_screen(c)
+            return Reply(answer, action="curious")
+        return Reply("Локальная нейросеть сейчас недоступна.")
+
+    def antigravity_task(self, c, m):
+        import bridge_client
+        import antigravity_bridge
+        task_text = m.group("task") if "task" in m.groupdict() and m.group("task") else c
+        task_text = task_text.strip()
+        bridge_client.send_say_async("Подключаю Antigravity, выполняю задачу...", face="look", action="curious", hold=5000)
+        answer = antigravity_bridge.run_task(task_text)
+        return Reply(answer, action="wave")
 
     @staticmethod
     def _run(target):

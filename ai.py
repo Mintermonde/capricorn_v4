@@ -41,9 +41,11 @@ def clean_for_speech(text: str) -> str:
 
 class AI:
     def __init__(self, cfg):
-        self.cfg = cfg
         self.history = []
+        self.update_config(cfg)
 
+    def update_config(self, cfg):
+        self.cfg = cfg
         self.gemini_key = cfg.get("gemini_api_key") or os.environ.get("GEMINI_API_KEY", "")
         self.anthropic_key = cfg.get("anthropic_api_key") or os.environ.get("ANTHROPIC_API_KEY", "")
 
@@ -58,11 +60,11 @@ class AI:
         else:
             self.provider = "gemini"
 
-        # Настройка модели по умолчанию
-        cfg_model = cfg.get("model", "")
+        # Настройка модели: убираем префикс models/ если он пришёл из Electron
+        cfg_model = (cfg.get("model", "") or "").replace("models/", "").strip()
         if self.provider == "gemini":
             if not cfg_model or cfg_model.startswith("claude-"):
-                self.model = "gemini-3.8-flash"
+                self.model = "gemini-3.6-flash"
             else:
                 self.model = cfg_model
         else:
@@ -74,15 +76,25 @@ class AI:
         # Инициализация клиентов
         self.gemini_client = None
         self.anthropic_client = None
+        self.gemini_base_url = (cfg.get("gemini_base_url") or os.environ.get("GEMINI_BASE_URL", "")).rstrip("/")
 
-        if self.gemini_key:
+        if self.gemini_key and self.provider == "gemini":
             try:
                 from google import genai
-                self.gemini_client = genai.Client(api_key=self.gemini_key)
+                from google.genai import types
+                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Capri/1.0"}
+                retry_options = types.HttpRetryOptions(attempts=1)
+                http_options = types.HttpOptions(
+                    base_url=self.gemini_base_url or None,
+                    timeout=12000,
+                    headers=headers,
+                    retry_options=retry_options
+                )
+                self.gemini_client = genai.Client(api_key=self.gemini_key, http_options=http_options)
             except Exception as e:
                 log.warning("google-genai SDK не загружен, будет использоваться REST API: %s", e)
 
-        if self.anthropic_key:
+        if self.anthropic_key and self.provider == "anthropic":
             try:
                 import anthropic
                 self.anthropic_client = anthropic.Anthropic(api_key=self.anthropic_key, timeout=60, max_retries=2)
@@ -115,8 +127,9 @@ class AI:
             temperature=0.7,
         )
 
-        models_to_try = [self.model]
-        for fb in ("gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"):
+        clean_model = self.model.replace("models/", "").strip()
+        models_to_try = [clean_model]
+        for fb in ("gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"):
             if fb not in models_to_try:
                 models_to_try.append(fb)
 
@@ -152,43 +165,62 @@ class AI:
         return ""
 
     def _call_gemini_rest(self, system, messages, use_search=True):
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.gemini_key}"
+        base = self.gemini_base_url or "https://generativelanguage.googleapis.com"
+        clean_model = self.model.replace("models/", "").strip()
+        models_to_try = [clean_model]
+        for fb in ("gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"):
+            if fb not in models_to_try:
+                models_to_try.append(fb)
+
         contents = [
             {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
             for m in messages
         ]
-        payload = {
-            "system_instruction": {"parts": [{"text": system}]},
-            "contents": contents,
-            "generationConfig": {"maxOutputTokens": 1000, "temperature": 0.7}
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         }
-        if use_search:
-            payload["tools"] = [{"google_search": {}}]
 
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"}
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                data = json.loads(r.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            if use_search and e.code == 400:
-                payload.pop("tools", None)
-                req2 = urllib.request.Request(
+        last_err = None
+        for m in models_to_try:
+            url = f"{base}/v1beta/models/{m}:generateContent?key={self.gemini_key}"
+            payload = {
+                "system_instruction": {"parts": [{"text": system}]},
+                "contents": contents,
+                "generationConfig": {"maxOutputTokens": 1000, "temperature": 0.7}
+            }
+            if use_search:
+                payload["tools"] = [{"google_search": {}}]
+
+            # Сначала с поиском (если включен), при ошибке 400 — повтор без поиска
+            for search_attempt in (True, False) if use_search else (False,):
+                if not search_attempt:
+                    payload.pop("tools", None)
+                req = urllib.request.Request(
                     url,
                     data=json.dumps(payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json"}
+                    headers=headers
                 )
-                with urllib.request.urlopen(req2, timeout=30) as r2:
-                    data = json.loads(r2.read().decode("utf-8"))
-            else:
-                raise
+                try:
+                    with urllib.request.urlopen(req, timeout=12) as r:
+                        data = json.loads(r.read().decode("utf-8"))
+                    cands = data.get("candidates", [])
+                    if cands and "content" in cands[0] and "parts" in cands[0]["content"]:
+                        return "".join(p.get("text", "") for p in cands[0]["content"]["parts"])
+                    break
+                except urllib.error.HTTPError as e:
+                    if e.code == 400 and search_attempt:
+                        continue
+                    last_err = e
+                    log.warning("REST вызов модели %s вернул код %d (%s), пробуем резервную...", m, e.code, e)
+                    break
+                except Exception as e:
+                    last_err = e
+                    log.warning("REST вызов модели %s завершился ошибкой (%s), пробуем резервную...", m, e)
+                    break
 
-        cands = data.get("candidates", [])
-        if cands and "content" in cands[0] and "parts" in cands[0]["content"]:
-            return "".join(p.get("text", "") for p in cands[0]["content"]["parts"])
+        if last_err:
+            raise last_err
         return ""
 
     def _call_gemini(self, system, messages, use_search=True):
@@ -251,6 +283,9 @@ class AI:
             self.history.pop()
             err_str = str(e).lower()
             log.exception("Ошибка при обращении к %s API: %s", self.provider, e)
+            if self.cfg.get("local_ai"):
+                log.info("Переключаемся на локальную нейросеть после сбоя облачного API.")
+                return None
             if "quota" in err_str or "rate" in err_str:
                 return "Слишком много запросов или закончилась квота, подожди немного."
             if "key" in err_str or "auth" in err_str or "401" in err_str:

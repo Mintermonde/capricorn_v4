@@ -131,7 +131,7 @@ def _post(path, payload, timeout):
 
 class LocalAI:
     def __init__(self, cfg):
-        self.model = cfg.get("local_model", "qwen3:8b")
+        self.model = cfg.get("local_model", "qwen2.5vl:3b")
         self.history = []
 
     def running(self):
@@ -153,8 +153,9 @@ class LocalAI:
                 log.info("Ollama не установлена")
                 return
         try:
-            _post("/api/generate", {"model": self.model, "prompt": "", "keep_alive": "10m"}, 120)
-            log.info("Локальная модель %s загружена", self.model)
+            # Не держим модель постоянно в VRAM, чтобы не забивать видеопамять во время игр
+            _post("/api/generate", {"model": self.model, "prompt": "", "keep_alive": "0m"}, 120)
+            log.info("Локальная модель %s проверена", self.model)
         except Exception as e:
             log.info("Не удалось прогреть модель: %s", e)
 
@@ -234,3 +235,44 @@ class LocalAI:
             ], max_tokens=400) or None
         except Exception:
             return None
+
+    def ask_screen(self, question="Что сейчас на экране?"):
+        """Анализирует экран через локальную мультимодальную модель (Qwen2.5-VL)."""
+        import base64
+        import io
+        import bridge_client
+
+        b64_img = bridge_client.get_screen_snap()
+        if not b64_img:
+            try:
+                from PIL import ImageGrab
+                img = ImageGrab.grab(all_screens=True)
+                img.thumbnail((1280, 720))
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=75)
+                b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
+            except Exception as e:
+                log.exception("Не удалось захватить экран через PIL: %s", e)
+                return "Не смогла сделать снимок экрана."
+
+        prompt = question or "Что сейчас на экране? Опиши в 1–3 предложениях."
+        system_prompt = (
+            f"{CHARACTER}\n\n{SPEECH_RULES}\n"
+            "Ты видишь скриншот экрана пользователя. Назови конкретное открытое приложение, сайт, "
+            "код, игру или документ, кратко объясни суть происходящего и дай свой живой комментарий от лица Капри."
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt, "images": [b64_img]}
+        ]
+        try:
+            answer = self._chat(messages, max_tokens=250)
+            if FOREIGN.search(answer):
+                answer = re.sub(r"\s+", " ", FOREIGN.sub("", answer)).strip()
+            answer = re.sub(r"\s*\([^)]*\)", "", answer)
+            answer = re.sub(r"[\U0001F000-\U0001FAFF☀-➿️]", "", answer).strip()
+            answer = answer[:1].upper() + answer[1:]
+            return answer or "Хм, посмотрела на экран, но ничего необычного не заметила."
+        except Exception as e:
+            log.info("Ошибка анализа экрана через VL: %s", e)
+            return "Не удалось разобрать картинку на экране."
