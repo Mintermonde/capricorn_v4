@@ -117,16 +117,21 @@ class GameModeManager:
 
     def get_current_game(self, foreground_proc=None, foreground_title=None):
         """
-        Возвращает (game_id, game_data) для активной или запущенной игры.
+        Возвращает (game_id, game_data) для активной в данный момент игры.
+        Строго проверяет, что игра запущена и (по умолчанию) находится в фокусе.
         """
         self.reload_if_changed()
 
-        # 1. Ручной выбор в конфиге
-        manual = self.config.get("active_game")
-        if manual and manual in self.config.get("games", {}):
-            return manual, self.config["games"][manual]
-
         if not self.config.get("auto_detect", True):
+            manual = self.config.get("active_game")
+            if manual and manual in self.config.get("games", {}):
+                gdata = self.config["games"][manual]
+                # Даже при ручном выборе проверяем, запущен ли процесс
+                import automation
+                for p in gdata.get("processes", []):
+                    clean_p = p.replace(".exe", "")
+                    if automation.is_process_running(clean_p):
+                        return manual, gdata
             return None, None
 
         if not foreground_proc:
@@ -146,7 +151,7 @@ class GameModeManager:
         proc_lower = (foreground_proc or "").lower()
         title_lower = (foreground_title or "").lower()
 
-        # 2. Проверка активного окна
+        # 1. Проверка активного окна на переднем плане (приоритет)
         for gid, gdata in self.config.get("games", {}).items():
             if not gdata.get("enabled", True):
                 continue
@@ -159,11 +164,14 @@ class GameModeManager:
             if patterns and any(pat in title_lower for pat in patterns):
                 return gid, gdata
 
-        # 3. Проверка запущенных процессов (если игра запущена в фоне/на другом мониторе)
+        # 2. Проверка запущенных процессов ТОЛЬКО для игр с режимом focus_mode == "running"
         try:
             import automation
             for gid, gdata in self.config.get("games", {}).items():
                 if not gdata.get("enabled", True):
+                    continue
+                # По умолчанию focus_mode == "foreground", макросы не посылаются в фоновые окна
+                if gdata.get("focus_mode") != "running":
                     continue
                 for p in gdata.get("processes", []):
                     clean_p = p.replace(".exe", "")
@@ -178,20 +186,14 @@ class GameModeManager:
         """
         Проверяет фразу на соответствие макросам активной игры.
         Возвращает dict с результатом (ok, game_name, phrase, keys, message) или None.
+        Строго требует, чтобы игра была запущена и активна!
         """
         clean = text.lower().strip()
         clean = re.sub(r"[,.!?]+", "", clean).strip()
 
-        # Если фраза явно про ЛТЦ / ловушки / закрылки — это 100% игра!
-        is_clear_game_phrase = any(w in clean for w in GAME_PHRASE_TRIGGERS)
-
         gid, gdata = self.get_current_game(foreground_proc, foreground_title)
 
-        # Если игра не нашлась по активному окну, но фраза явно игровая — берем war_thunder по умолчанию
-        if (not gid or not gdata) and is_clear_game_phrase:
-            gid = "war_thunder"
-            gdata = self.config.get("games", {}).get("war_thunder")
-
+        # Если игра НЕ запущена или окно не в фокусе — макросы НЕ выполняются!
         if not gid or not gdata:
             return None
 
@@ -290,7 +292,7 @@ class GameModeManager:
                 action_name = "ВЫПУСТИЛА ЛТЦ"
                 keys_str = "MOUSE4"
         else:
-            ok = direct_input.press_combo(matched_keys)
+            ok = direct_input.press_sequence(matched_keys)
             if any(w in clean for w in ("захват", "парл", "за хват", "запад", "захвати")) and not any(w in clean for w in ("парл на ик", "ик на парл", "смени ракету", "смена ракет", "переключи ракету")):
                 action_name = "РЕЖИМ ЗАХВАТА"
             elif any(w in clean for w in ("парл на ик", "ик на парл", "ракет", "вооружен")):

@@ -1,203 +1,830 @@
 {
   "auto_detect": true,
-  "active_game": "war_thunder",
+  "active_game": null,
   "games": {
     "war_thunder": {
       "name": "War Thunder",
-      "processes": ["aces.exe", "aces_BE.exe", "aces"],
-      "window_patterns": ["war thunder", "aces"],
+      "processes": [
+        "aces.exe"
+      ],
+      "window_patterns": [
+        "war thunder",
+        "aces"
+      ],
+      "focus_mode": "foreground",
       "enabled": true,
       "bindings": {
-        "лтц": ["mouse4"],
-        "выпусти лтц": ["mouse4"],
-        "выпустить лтц": ["mouse4"],
-        "сбрось лтц": ["mouse4"],
-        "сбросить лтц": ["mouse4"],
-        "отстрели лтц": ["mouse4"],
-        "отстрелить лтц": ["mouse4"],
-        "дай лтц": ["mouse4"],
-        "кинь лтц": ["mouse4"],
-        "скинь лтц": ["mouse4"],
-        "сброс лтц": ["mouse4"],
-        "отстрел лтц": ["mouse4"],
-        "спам лтц": ["mouse4"],
-        "ловушки": ["mouse4"],
-        "выпусти ловушки": ["mouse4"],
-        "выпустить ловушки": ["mouse4"],
-        "сбрось ловушки": ["mouse4"],
-        "сбросить ловушки": ["mouse4"],
-        "отстрели ловушки": ["mouse4"],
-        "отстрелить ловушки": ["mouse4"],
-        "дай ловушки": ["mouse4"],
-        "кинь ловушки": ["mouse4"],
-        "ловушек": ["mouse4"],
-        "выпусти ловушек": ["mouse4"],
-        "вспышки": ["mouse4"],
-        "сбрось ловушек": ["mouse4"],
-        "тепловые ловушки": ["mouse4"],
-        "выпусти тепловые ловушки": ["mouse4"],
-        "сбрось тепловые ловушки": ["mouse4"],
-        "отстрели тепловые ловушки": ["mouse4"],
-        "флеры": ["mouse4"],
-        "выпусти флеры": ["mouse4"],
-        "сбрось флеры": ["mouse4"],
-        "отстрели флеры": ["mouse4"],
-        "флейры": ["mouse4"],
-        "флэры": ["mouse4"],
-        "фларес": ["mouse4"],
-        "диполи": ["mouse4"],
-        "выпусти диполи": ["mouse4"],
-        "сбрось диполи": ["mouse4"],
-        "отстрели диполи": ["mouse4"],
-        "эл тэ цэ": ["mouse4"],
-        "элтэцэ": ["mouse4"],
-        "л т ц": ["mouse4"],
-        "лт цэ": ["mouse4"],
-        "л тэ цэ": ["mouse4"],
-        "от отца": ["mouse4"],
-        "выпусти от отца": ["mouse4"],
-        "выпустил от отца": ["mouse4"],
-        "выпустить от отца": ["mouse4"],
-        "сбрось от отца": ["mouse4"],
-        "отстрели от отца": ["mouse4"],
-        "отцы": ["mouse4"],
-        "выпусти отцы": ["mouse4"],
-        "сбрось отцы": ["mouse4"],
-
-        "режим захвата": [["alt", "a"], 0.08, ["alt", "w"]],
-        "включи режим захвата": [["alt", "a"], 0.08, ["alt", "w"]],
-        "включить режим захвата": [["alt", "a"], 0.08, ["alt", "w"]],
-        "захват цели": [["alt", "a"], 0.08, ["alt", "w"]],
-        "захват": [["alt", "a"], 0.08, ["alt", "w"]],
-        "радарный захват": [["alt", "a"], 0.08, ["alt", "w"]],
-        "захвати цель": [["alt", "a"], 0.08, ["alt", "w"]],
-        "захвати": [["alt", "a"], 0.08, ["alt", "w"]],
-        "сделай захват": [["alt", "a"], 0.08, ["alt", "w"]],
-        "за хват": [["alt", "a"], 0.08, ["alt", "w"]],
-        "за хват цели": [["alt", "a"], 0.08, ["alt", "w"]],
-        "режим парл": [["alt", "a"], 0.08, ["alt", "w"]],
-        "парл": [["alt", "a"], 0.08, ["alt", "w"]],
-        "ракета парл": [["alt", "a"], 0.08, ["alt", "w"]],
-        "ракеты парл": [["alt", "a"], 0.08, ["alt", "w"]],
-        "переключи на парл": [["alt", "a"], 0.08, ["alt", "w"]],
-        "переключись на парл": [["alt", "a"], 0.08, ["alt", "w"]],
-        "переключи на радар": [["alt", "a"], 0.08, ["alt", "w"]],
-        "переключись на радар": [["alt", "a"], 0.08, ["alt", "w"]],
-        "запад цели": [["alt", "a"], 0.08, ["alt", "w"]],
-        "режим запада": [["alt", "a"], 0.08, ["alt", "w"]],
-        "запад": [["alt", "a"], 0.08, ["alt", "w"]],
-
-        "парл на ик": ["alt", "w"],
-        "с парл на ик": ["alt", "w"],
-        "ик на парл": ["alt", "w"],
-        "с ик на парл": ["alt", "w"],
-        "смени ракету": ["alt", "w"],
-        "сменить ракету": ["alt", "w"],
-        "смена ракет": ["alt", "w"],
-        "смена ракеты": ["alt", "w"],
-        "переключи ракету": ["alt", "w"],
-        "переключить ракету": ["alt", "w"],
-        "переключение ракет": ["alt", "w"],
-        "следующая ракета": ["alt", "w"],
-        "другая ракета": ["alt", "w"],
-        "выбор ракеты": ["alt", "w"],
-        "переключение вооружения": ["alt", "w"],
-        "переключение основного вооружения": ["alt", "w"],
-        "смена вооружения": ["alt", "w"],
-        "переключи вооружение": ["alt", "w"],
-        "вооружение": ["alt", "w"],
-        "ракета": ["alt", "w"],
-        "ракеты": ["alt", "w"],
-
-        "переключение рлс-олс": ["alt", "a"],
-        "переключение рлс олс": ["alt", "a"],
-        "переключение рлс": ["alt", "a"],
-        "переключение олс": ["alt", "a"],
-        "рлс олс": ["alt", "a"],
-        "олс рлс": ["alt", "a"],
-        "переключи рлс": ["alt", "a"],
-        "переключи олс": ["alt", "a"],
-        "режим олс": ["alt", "a"],
-        "режим рлс олс": ["alt", "a"],
-
-        "радар": ["alt", "r"],
-        "включи радар": ["alt", "r"],
-        "включить радар": ["alt", "r"],
-        "выключи радар": ["alt", "r"],
-        "выключить радар": ["alt", "r"],
-        "поиск рлс": ["alt", "r"],
-        "поиск": ["alt", "r"],
-
-        "захват цели рлс": ["alt", "f"],
-        "захват рлс": ["alt", "f"],
-        "лок рлс": ["alt", "f"],
-        "залочь цель": ["alt", "f"],
-        "залочь": ["alt", "f"],
-        "сопровождение цели": ["alt", "f"],
-
-        "выбор цели": ["alt", "t"],
-        "выбор цели рлс": ["alt", "t"],
-        "выбери цель": ["alt", "t"],
-        "следующая цель": ["alt", "t"],
-        "смени цель": ["alt", "t"],
-        "другая цель": ["alt", "t"],
-
-        "смена режима рлс": ["alt", "b"],
-        "режим рлс": ["alt", "b"],
-        "смени режим рлс": ["alt", "b"],
-
-        "смена режима обзора": ["alt", "d"],
-        "обзор рлс": ["alt", "d"],
-        "режим обзора": ["alt", "d"],
-
-        "масштаб рлс": ["alt", "q"],
-        "масштаб экрана": ["alt", "q"],
-        "смени масштаб": ["alt", "q"],
-        "масштаб": ["alt", "q"],
-
-        "закрылки": ["f"],
-        "выпусти закрылки": ["f"],
-        "выпустить закрылки": ["f"],
-        "убери закрылки": ["f"],
-        "убрать закрылки": ["f"],
-        "за крылки": ["f"],
-        "закрылка": ["f"],
-
-        "шасси": ["g"],
-        "выпусти шасси": ["g"],
-        "выпустить шасси": ["g"],
-        "убери шасси": ["g"],
-        "убрать шасси": ["g"],
-        "шоссе": ["g"],
-        "выпусти шоссе": ["g"],
-        "убери шоссе": ["g"],
-
-        "воздушный тормоз": ["h"],
-        "тормоз": ["h"],
-        "выпусти тормоз": ["h"],
-        "убери тормоз": ["h"],
-        "тормоза": ["h"],
-
-        "сброс бомб": ["space"],
-        "сбрось бомбы": ["space"],
-        "сбросить бомбы": ["space"],
-        "бомбы": ["space"],
-        "кинь бомбу": ["space"],
-        "сбрось бомбу": ["space"],
-        "скинь бомбу": ["space"],
-
-        "пуск ракеты": ["alt", "ctrl"],
-        "пусти ракету": ["alt", "ctrl"],
-        "пуск урвв": ["alt", "ctrl"],
-        "пуск аам": ["alt", "ctrl"],
-        "пуск": ["alt", "ctrl"],
-        "огонь": ["alt", "ctrl"],
-
-        "выстрел": ["mouse1"],
-        "второй выстрел": [["mouse5"], 0.4, ["mouse1"]],
-        "дистанция": ["mouse5"],
-        "дым": ["g"]
-      }
+        "лтц": [
+          "mouse4"
+        ],
+        "выпусти лтц": [
+          "mouse4"
+        ],
+        "выпустить лтц": [
+          "mouse4"
+        ],
+        "сбрось лтц": [
+          "mouse4"
+        ],
+        "сбросить лтц": [
+          "mouse4"
+        ],
+        "отстрели лтц": [
+          "mouse4"
+        ],
+        "отстрелить лтц": [
+          "mouse4"
+        ],
+        "дай лтц": [
+          "mouse4"
+        ],
+        "кинь лтц": [
+          "mouse4"
+        ],
+        "скинь лтц": [
+          "mouse4"
+        ],
+        "сброс лтц": [
+          "mouse4"
+        ],
+        "отстрел лтц": [
+          "mouse4"
+        ],
+        "спам лтц": [
+          "mouse4"
+        ],
+        "ловушки": [
+          "mouse4"
+        ],
+        "выпусти ловушки": [
+          "mouse4"
+        ],
+        "выпустить ловушки": [
+          "mouse4"
+        ],
+        "сбрось ловушки": [
+          "mouse4"
+        ],
+        "сбросить ловушки": [
+          "mouse4"
+        ],
+        "отстрели ловушки": [
+          "mouse4"
+        ],
+        "отстрелить ловушки": [
+          "mouse4"
+        ],
+        "дай ловушки": [
+          "mouse4"
+        ],
+        "кинь ловушки": [
+          "mouse4"
+        ],
+        "ловушек": [
+          "mouse4"
+        ],
+        "выпусти ловушек": [
+          "mouse4"
+        ],
+        "вспышки": [
+          "mouse4"
+        ],
+        "сбрось ловушек": [
+          "mouse4"
+        ],
+        "тепловые ловушки": [
+          "mouse4"
+        ],
+        "выпусти тепловые ловушки": [
+          "mouse4"
+        ],
+        "сбрось тепловые ловушки": [
+          "mouse4"
+        ],
+        "отстрели тепловые ловушки": [
+          "mouse4"
+        ],
+        "флеры": [
+          "mouse4"
+        ],
+        "выпусти флеры": [
+          "mouse4"
+        ],
+        "сбрось флеры": [
+          "mouse4"
+        ],
+        "отстрели флеры": [
+          "mouse4"
+        ],
+        "флейры": [
+          "mouse4"
+        ],
+        "флэры": [
+          "mouse4"
+        ],
+        "фларес": [
+          "mouse4"
+        ],
+        "диполи": [
+          "mouse4"
+        ],
+        "выпусти диполи": [
+          "mouse4"
+        ],
+        "сбрось диполи": [
+          "mouse4"
+        ],
+        "отстрели диполи": [
+          "mouse4"
+        ],
+        "эл тэ цэ": [
+          "mouse4"
+        ],
+        "элтэцэ": [
+          "mouse4"
+        ],
+        "л т ц": [
+          "mouse4"
+        ],
+        "лт цэ": [
+          "mouse4"
+        ],
+        "л тэ цэ": [
+          "mouse4"
+        ],
+        "от отца": [
+          "mouse4"
+        ],
+        "выпусти от отца": [
+          "mouse4"
+        ],
+        "выпустил от отца": [
+          "mouse4"
+        ],
+        "выпустить от отца": [
+          "mouse4"
+        ],
+        "сбрось от отца": [
+          "mouse4"
+        ],
+        "отстрели от отца": [
+          "mouse4"
+        ],
+        "отцы": [
+          "mouse4"
+        ],
+        "выпусти отцы": [
+          "mouse4"
+        ],
+        "сбрось отцы": [
+          "mouse4"
+        ],
+        "режим захвата": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "включи режим захвата": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "включить режим захвата": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "захват цели": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "захват": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "радарный захват": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "захвати цель": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "захвати": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "сделай захват": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "за хват": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "за хват цели": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "режим парл": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "парл": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "ракета парл": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "ракеты парл": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "переключи на парл": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "переключись на парл": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "переключи на радар": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "переключись на радар": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "запад цели": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "режим запада": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "запад": [
+          [
+            "alt",
+            "a"
+          ],
+          0.08,
+          [
+            "alt",
+            "w"
+          ]
+        ],
+        "парл на ик": [
+          "alt",
+          "w"
+        ],
+        "с парл на ик": [
+          "alt",
+          "w"
+        ],
+        "ик на парл": [
+          "alt",
+          "w"
+        ],
+        "с ик на парл": [
+          "alt",
+          "w"
+        ],
+        "смени ракету": [
+          "alt",
+          "w"
+        ],
+        "сменить ракету": [
+          "alt",
+          "w"
+        ],
+        "смена ракет": [
+          "alt",
+          "w"
+        ],
+        "смена ракеты": [
+          "alt",
+          "w"
+        ],
+        "переключи ракету": [
+          "alt",
+          "w"
+        ],
+        "переключить ракету": [
+          "alt",
+          "w"
+        ],
+        "переключение ракет": [
+          "alt",
+          "w"
+        ],
+        "следующая ракета": [
+          "alt",
+          "w"
+        ],
+        "другая ракета": [
+          "alt",
+          "w"
+        ],
+        "выбор ракеты": [
+          "alt",
+          "w"
+        ],
+        "переключение вооружения": [
+          "alt",
+          "w"
+        ],
+        "переключение основного вооружения": [
+          "alt",
+          "w"
+        ],
+        "смена вооружения": [
+          "alt",
+          "w"
+        ],
+        "переключи вооружение": [
+          "alt",
+          "w"
+        ],
+        "вооружение": [
+          "alt",
+          "w"
+        ],
+        "ракета": [
+          "alt",
+          "w"
+        ],
+        "ракеты": [
+          "alt",
+          "w"
+        ],
+        "переключение рлс-олс": [
+          "alt",
+          "a"
+        ],
+        "переключение рлс олс": [
+          "alt",
+          "a"
+        ],
+        "переключение рлс": [
+          "alt",
+          "a"
+        ],
+        "переключение олс": [
+          "alt",
+          "a"
+        ],
+        "рлс олс": [
+          "alt",
+          "a"
+        ],
+        "олс рлс": [
+          "alt",
+          "a"
+        ],
+        "переключи рлс": [
+          "alt",
+          "a"
+        ],
+        "переключи олс": [
+          "alt",
+          "a"
+        ],
+        "режим олс": [
+          "alt",
+          "a"
+        ],
+        "режим рлс олс": [
+          "alt",
+          "a"
+        ],
+        "радар": [
+          "alt",
+          "r"
+        ],
+        "включи радар": [
+          "alt",
+          "r"
+        ],
+        "включить радар": [
+          "alt",
+          "r"
+        ],
+        "выключи радар": [
+          "alt",
+          "r"
+        ],
+        "выключить радар": [
+          "alt",
+          "r"
+        ],
+        "поиск рлс": [
+          "alt",
+          "r"
+        ],
+        "поиск": [
+          "alt",
+          "r"
+        ],
+        "захват цели рлс": [
+          "alt",
+          "f"
+        ],
+        "захват рлс": [
+          "alt",
+          "f"
+        ],
+        "лок рлс": [
+          "alt",
+          "f"
+        ],
+        "залочь цель": [
+          "alt",
+          "f"
+        ],
+        "залочь": [
+          "alt",
+          "f"
+        ],
+        "сопровождение цели": [
+          "alt",
+          "f"
+        ],
+        "выбор цели": [
+          "alt",
+          "t"
+        ],
+        "выбор цели рлс": [
+          "alt",
+          "t"
+        ],
+        "выбери цель": [
+          "alt",
+          "t"
+        ],
+        "следующая цель": [
+          "alt",
+          "t"
+        ],
+        "смени цель": [
+          "alt",
+          "t"
+        ],
+        "другая цель": [
+          "alt",
+          "t"
+        ],
+        "смена режима рлс": [
+          "alt",
+          "b"
+        ],
+        "режим рлс": [
+          "alt",
+          "b"
+        ],
+        "смени режим рлс": [
+          "alt",
+          "b"
+        ],
+        "смена режима обзора": [
+          "alt",
+          "d"
+        ],
+        "обзор рлс": [
+          "alt",
+          "d"
+        ],
+        "режим обзора": [
+          "alt",
+          "d"
+        ],
+        "масштаб рлс": [
+          "alt",
+          "q"
+        ],
+        "масштаб экрана": [
+          "alt",
+          "q"
+        ],
+        "смени масштаб": [
+          "alt",
+          "q"
+        ],
+        "масштаб": [
+          "alt",
+          "q"
+        ],
+        "закрылки": [
+          "f"
+        ],
+        "выпусти закрылки": [
+          "f"
+        ],
+        "выпустить закрылки": [
+          "f"
+        ],
+        "убери закрылки": [
+          "f"
+        ],
+        "убрать закрылки": [
+          "f"
+        ],
+        "за крылки": [
+          "f"
+        ],
+        "закрылка": [
+          "f"
+        ],
+        "шасси": [
+          "g"
+        ],
+        "выпусти шасси": [
+          "g"
+        ],
+        "выпустить шасси": [
+          "g"
+        ],
+        "убери шасси": [
+          "g"
+        ],
+        "убрать шасси": [
+          "g"
+        ],
+        "шоссе": [
+          "g"
+        ],
+        "выпусти шоссе": [
+          "g"
+        ],
+        "убери шоссе": [
+          "g"
+        ],
+        "дым": [
+          "g"
+        ],
+        "воздушный тормоз": [
+          "h"
+        ],
+        "тормоз": [
+          "h"
+        ],
+        "выпусти тормоз": [
+          "h"
+        ],
+        "убери тормоз": [
+          "h"
+        ],
+        "тормоза": [
+          "h"
+        ],
+        "маневр": [
+          "z"
+        ],
+        "манёвр": [
+          "z"
+        ],
+        "россия": [
+          "z"
+        ],
+        "маневрируй": [
+          "z"
+        ],
+        "сброс бомб": [
+          "space"
+        ],
+        "сбрось бомбы": [
+          "space"
+        ],
+        "сбросить бомбы": [
+          "space"
+        ],
+        "бомбы": [
+          "space"
+        ],
+        "кинь бомбу": [
+          "space"
+        ],
+        "сбрось бомбу": [
+          "space"
+        ],
+        "скинь бомбу": [
+          "space"
+        ],
+        "пуск ракеты": [
+          "alt",
+          "ctrl"
+        ],
+        "пусти ракету": [
+          "alt",
+          "ctrl"
+        ],
+        "пуск урвв": [
+          "alt",
+          "ctrl"
+        ],
+        "пуск аам": [
+          "alt",
+          "ctrl"
+        ],
+        "пуск": [
+          "alt",
+          "ctrl"
+        ],
+        "огонь": [
+          "alt",
+          "ctrl"
+        ],
+        "выстрел": [
+          "mouse1"
+        ],
+        "второй выстрел": [
+          [
+            "mouse5"
+          ],
+          0.4,
+          [
+            "mouse1"
+          ]
+        ],
+        "первый снаряд": [
+          "1"
+        ],
+        "второй снаряд": [
+          "2"
+        ],
+        "птур": [
+          "r"
+        ],
+        "тур": [
+          "r"
+        ],
+        "пэтур": [
+          "r"
+        ],
+        "дрон": [
+          "alt",
+          "u"
+        ],
+        "бпла": [
+          "alt",
+          "u"
+        ],
+        "байроктар": [
+          "alt",
+          "u"
+        ],
+        "дистанция": [
+          "mouse5"
+        ]
+      },
+      "icon": "data:image/png;base64,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"
     }
   }
 }

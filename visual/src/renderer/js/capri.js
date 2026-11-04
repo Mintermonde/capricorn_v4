@@ -107,6 +107,7 @@ export class Capri {
     this.onTeleport = null; // ('start' | 'end')
     this.onClick = null;
     this.onMenu = null;   // right-click on her
+    this.onTrashShock = null; // attempted drag to recycle bin
     this.onGaze = null;
     this.onMode = null;   // (mode, previous)
     this.onStow = null;   // she's in her biochip
@@ -339,6 +340,7 @@ export class Capri {
   setWindows(data) {
     this.windows = data;
     if (this.stance !== 'sit' || this.busy || this.dragging) return;
+    if (this.perch?.id === 'settings_window') return;
     const win = this.perchWin(this.perch.id);
     const dx = win ? clamp(this.perch.dx, 50, win.w - 60) : 0;
     if (!win || !this.canSit(win) || this.covered(win, win.x + dx)) {
@@ -358,7 +360,7 @@ export class Capri {
   }
 
   canSit(win) {
-    if (win.id === 'taskbar') return true;
+    if (win.id === 'taskbar' || win.id === 'settings_window') return true;
     const roomAbove = SPRITE.hip * this.scale + 12;
     return !win.max && win.w > 260 && win.y > roomAbove && win.y < this.view.floor - 80;
   }
@@ -384,7 +386,9 @@ export class Capri {
 
   // What she's perched on, from its id: a window, or the taskbar.
   perchWin(id) {
-    return id === 'taskbar' ? this.ledge() : this.windows.wins.find((w) => w.id === id);
+    if (id === 'taskbar') return this.ledge();
+    if (id === 'settings_window') return this._settingsWin || null;
+    return this.windows.wins.find((w) => w.id === id);
   }
 
   // Back to where she rests: her corner, or sitting on the taskbar below it.
@@ -1754,6 +1758,24 @@ export class Capri {
             x: clamp(down.pos.x + dx, 40, this.view.w - 40),
             y: clamp(down.pos.y + dy, SPRITE.height * this.scale * 0.5, this.floor),
           };
+
+          // Resistance to Recycle Bin in top-left
+          const trashTarget = { x: 55, y: 55 };
+          const dTrash = Math.hypot(e.clientX - trashTarget.x, e.clientY - trashTarget.y);
+          if (dTrash < 240) {
+            this.p.glitch = Math.min(0.9, 0.25 + (240 - dTrash) / 200);
+            this.p.split = Math.min(10, 3 + (240 - dTrash) / 30);
+            if (Math.random() < 0.22) {
+              const h = this.head();
+              this.fx.crackle(h, { life: 250, radius: 55, count: 2 });
+            }
+          }
+          if (dTrash < 90 || (e.clientX < 85 && e.clientY < 95)) {
+            down = null;
+            this.resistTrash(trashTarget);
+            return;
+          }
+
           this.p.glitchSeed = Math.random() * 100;
           this.place();
         }
@@ -2215,6 +2237,42 @@ export class Capri {
     if (this.busy) return;
     this.onDodge?.();
     this.teleport(this.spot('random'));
+  }
+
+  // Attempted to drag into Windows Recycle Bin: resists, shocks with lightning, and escapes
+  resistTrash(trashPos = { x: 55, y: 55 }) {
+    if (this.resistingTrash) return;
+    this.resistingTrash = true;
+    this.busy = true;
+    this.dragging = false;
+
+    try {
+      this.voice.play('bolt');
+      this.voice.play('alert');
+    } catch {}
+
+    const h = this.head();
+    this.fx.bolt(h, trashPos, { life: 450, forks: 4, width: 4 });
+    this.fx.burst(h.x, h.y, { count: 28, power: 1.4, spread: 90 });
+    this.fx.crackle(h, { life: 400, radius: 80, count: 5 });
+
+    this.p.glitch = 0.95;
+    this.p.split = 12;
+
+    this.onTrashShock?.();
+
+    setTimeout(async () => {
+      try {
+        await this.teleport(this.spot('random'));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        this.resistingTrash = false;
+        this.busy = false;
+        this.p.glitch = 0;
+        this.p.split = 0;
+      }
+    }, 280);
   }
 
   // ---------- other screens ----------

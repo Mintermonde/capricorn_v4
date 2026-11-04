@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Capri // Настройки системы</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Jura:wght@500;600;700&family=Unbounded:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/settings.css" />
+</head>
+<body>
+  <div class="settings-window">
+    <!-- Header / Titlebar -->
+    <header class="settings-header">
+      <div class="brand">
+        <span class="brand-badge">CAPRICORN</span>
+        <span class="brand-title">v4.0 // НАСТРОЙКИ СИСТЕМЫ</span>
+      </div>
+      <div class="window-controls">
+        <button id="btn-minimize" class="win-btn" title="Свернуть">─</button>
+        <button id="btn-maximize" class="win-btn" title="Развернуть">🗖</button>
+        <button id="btn-close" class="win-btn win-close" title="Закрыть">✕</button>
+      </div>
+    </header>
+
+    <!-- Main Body: Navigation Sidebar + Content -->
+    <div class="settings-body">
+      <!-- Navigation Sidebar -->
+      <nav class="settings-nav">
+        <button class="nav-tab active" data-tab="tab-personal">
+          <span class="tab-label">Персонализация</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-sound">
+          <span class="tab-label">Звук и Микрофон</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-ai">
+          <span class="tab-label">Нейросеть (ИИ)</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-games">
+          <span class="tab-label">Игровой режим</span>
+          <span class="tab-counter" id="game-tab-badge">0</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-apps">
+          <span class="tab-label">Приложения и Сайты</span>
+          <span class="tab-counter" id="apps-tab-badge">0</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-system">
+          <span class="tab-label">О системе</span>
+        </button>
+      </nav>
+
+      <!-- Content Panels -->
+      <main class="settings-content">
+        <!-- 1. Персонализация -->
+        <section id="tab-personal" class="tab-pane active">
+          <div class="pane-header">
+            <h2>Персонализация и поведение</h2>
+            <p class="pane-desc">Настройка темы интерфейса, характера Капри, анимаций и взаимодействия на рабочем столе.</p>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group form-row">
+              <div class="form-col">
+                <label for="cfg-theme">Тема оформления интерфейса</label>
+                <select id="cfg-theme" class="input-select">
+                  <option value="dark">Тёмная тема (Dark Cyberpunk)</option>
+                  <option value="pastel">Пастельная тема (Soft Pastel)</option>
+                  <option value="light">Светлая тема (Light Minimal)</option>
+                </select>
+                <span class="input-hint">Мгновенное переключение между тёмной, пастельной и светлой темами.</span>
+              </div>
+              <div class="form-col">
+                <label for="cfg-userName">Ваше имя (обращение)</label>
+                <input type="text" id="cfg-userName" class="input-text" placeholder="Например: Командир" />
+                <span class="input-hint">Имя, которым Капри называет вас при общении.</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <div class="label-with-action">
+                <label for="cfg-persona">Характер и стиль общения Капри (Системный промпт)</label>
+                <div class="label-actions">
+                  <button id="btn-default-persona" type="button" class="btn-link btn-xs">[ Вставить по умолчанию ]</button>
+                  <button id="btn-clear-persona" type="button" class="btn-link btn-xs text-danger">[ Очистить ]</button>
+                </div>
+              </div>
+              <textarea id="cfg-persona" class="input-textarea" rows="4" placeholder="Опишите желаемый стиль поведения Капри или используйте системный промпт по умолчанию..."></textarea>
+              <span class="input-hint">Этот системный промпт задает характер, тон речи и правила поведения Капри во всех диалогах, ответах на вопросы и при комментировании экрана.</span>
+            </div>
+
+            <div class="form-group form-row">
+              <div class="form-col">
+                <label for="cfg-rest">Место отдыха в простое</label>
+                <select id="cfg-rest" class="input-select">
+                  <option value="corner">Угол экрана (Post)</option>
+                  <option value="taskbar">Сидеть на панели задач (Taskbar)</option>
+                </select>
+              </div>
+              <div class="form-col">
+                <label for="cfg-motion">Режим анимаций</label>
+                <select id="cfg-motion" class="input-select">
+                  <option value="auto">Автоматически (как в системе)</option>
+                  <option value="full">Полные плавные движения</option>
+                  <option value="reduced">Упрощенные (без резких рывков)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Поведение ассистента</label>
+              <div class="checkbox-list">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="cfg-wander" />
+                  <span class="checkmark"></span>
+                  <span class="cb-label"><strong>Блуждание (Wander):</strong> Капри периодически перемещается и осматривается</span>
+                </label>
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="cfg-possess" />
+                  <span class="checkmark"></span>
+                  <span class="cb-label"><strong>Интерактив с окнами:</strong> Садится на верхние рамки открытых окон</span>
+                </label>
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="cfg-jealous" />
+                  <span class="checkmark"></span>
+                  <span class="cb-label"><strong>Ревность:</strong> Реагирует, если замечает вкладки других ИИ (ChatGPT, Claude)</span>
+                </label>
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="cfg-pcReact" />
+                  <span class="checkmark"></span>
+                  <span class="cb-label"><strong>Реакция на ПК:</strong> Комментирует высокую нагрузку CPU, батарею и USB-флешки</span>
+                </label>
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="cfg-startup" />
+                  <span class="checkmark"></span>
+                  <span class="cb-label"><strong>Автозапуск:</strong> Запускать Капри автоматически при старте Windows</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Звук и Микрофон -->
+        <section id="tab-sound" class="tab-pane">
+          <div class="pane-header">
+            <h2>Звук, эффекты и микрофон</h2>
+            <p class="pane-desc">Управление громкостью синтезированных блипов и настройка распознавания речи.</p>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="cfg-volume">Громкость звуковых эффектов и блипов: <span id="volume-val">70%</span></label>
+              <div class="slider-row">
+                <input type="range" id="cfg-volume" min="0" max="100" value="70" class="input-range" />
+                <label class="custom-checkbox inline-cb">
+                  <input type="checkbox" id="cfg-muted" />
+                  <span class="checkmark"></span>
+                  <span class="cb-label">Без звука (Mute)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <div class="label-with-action">
+                <label for="cfg-mic">Устройство ввода (Микрофон)</label>
+                <button id="btn-refresh-mics" class="btn-link">[ Обновить устройства ]</button>
+              </div>
+              <select id="cfg-mic" class="input-select">
+                <option value="">По умолчанию (Default System Mic)</option>
+              </select>
+              <span class="input-hint">Физический микрофон для голосовых команд ассистенту.</span>
+            </div>
+
+            <div class="form-group">
+              <label>Активационные слова (Wake words)</label>
+              <div class="tags-container" id="wake-words-list">
+                <!-- Tag chips -->
+              </div>
+              <div class="input-action-row">
+                <input type="text" id="new-wake-word" class="input-text" placeholder="Добавить слово (например: капри, capri)..." />
+                <button id="btn-add-wake-word" class="btn btn-secondary">+ Добавить</button>
+              </div>
+              <span class="input-hint">Капри начинает слушать вас после того, как услышит любое из этих слов.</span>
+            </div>
+
+            <div class="form-group">
+              <label class="custom-checkbox">
+                <input type="checkbox" id="cfg-bargeIn" checked />
+                <span class="checkmark"></span>
+                <span class="cb-label"><strong>Перебивание речи (Barge-in):</strong> Возможность прервать реплику ассистента новым запросом</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Нейросеть (ИИ) -->
+        <section id="tab-ai" class="tab-pane">
+          <div class="pane-header">
+            <h2>Нейросеть и искусственный интеллект</h2>
+            <p class="pane-desc">Подключение языковых моделей для живого общения, ответов на вопросы и анализа происходящего на экране.</p>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="cfg-aiProvider">Провайдер ИИ</label>
+              <select id="cfg-aiProvider" class="input-select">
+                <option value="gemini">Google Gemini (Быстрый облачный ИИ, зрение, веб-поиск)</option>
+                <option value="anthropic">Anthropic Claude (Claude 3.7 Sonnet, 3.5 Sonnet, Haiku)</option>
+                <option value="openai">OpenAI (ChatGPT, GPT-4o, o3-mini)</option>
+                <option value="deepseek">DeepSeek (DeepSeek V3, R1 Reasoning)</option>
+                <option value="groq">Groq (Сверхбыстрый LPU, Llama 3.3 70B)</option>
+                <option value="mistral">Mistral AI (Codestral, Mistral Large)</option>
+                <option value="openrouter">OpenRouter (Единый доступ ко всем мировым моделям)</option>
+                <option value="ollama">Ollama (Локальный ИИ на вашей видеокарте без интернета)</option>
+                <option value="custom">Пользовательский OpenAI-совместимый эндпоинт</option>
+              </select>
+            </div>
+
+            <!-- Dynamic Provider Settings Box -->
+            <div id="ai-provider-card" class="provider-box">
+              <div class="form-group" id="group-ai-key">
+                <label for="cfg-aiKey" id="label-ai-key">API Ключ</label>
+                <div class="input-password-row">
+                  <input type="password" id="cfg-aiKey" class="input-text" placeholder="Введите API ключ..." />
+                  <button id="btn-toggle-key" type="button" class="btn btn-secondary" title="Показать/скрыть ключ">Показать</button>
+                </div>
+                <span id="hint-ai-key" class="input-hint"></span>
+              </div>
+
+              <div class="form-group">
+                <label for="cfg-aiModel" id="label-ai-model">Модель ИИ</label>
+                <div class="model-select-row">
+                  <select id="cfg-aiModel" class="input-select"></select>
+                  <input type="text" id="cfg-aiModelCustom" class="input-text hidden" placeholder="Имя модели (например: my-model-id)..." />
+                </div>
+                <span id="hint-ai-model" class="input-hint"></span>
+              </div>
+
+              <div class="form-group" id="group-ai-url">
+                <label for="cfg-aiUrl" id="label-ai-url">Cloudflare Worker / Прокси / Базовый URL</label>
+                <input type="text" id="cfg-aiUrl" class="input-text" placeholder="" />
+                <span id="hint-ai-url" class="input-hint"></span>
+              </div>
+
+              <div class="form-group">
+                <div class="test-connection-row">
+                  <button id="btn-test-ai" type="button" class="btn btn-secondary">Проверить связь с ИИ</button>
+                  <span id="test-ai-status" class="test-status"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Инициативная болтовня (Chatter)</label>
+              <label class="custom-checkbox">
+                <input type="checkbox" id="cfg-chatter" checked />
+                <span class="checkmark"></span>
+                <span class="cb-label">Капри может сама иногда начинать разговор или подмечать интересное на экране</span>
+              </label>
+              <div class="form-row chatter-range-row">
+                <div class="form-col">
+                  <label for="cfg-chatterMin">Минимум (минут):</label>
+                  <input type="number" id="cfg-chatterMin" class="input-number" min="5" max="180" value="15" />
+                </div>
+                <div class="form-col">
+                  <label for="cfg-chatterMax">Максимум (минут):</label>
+                  <input type="number" id="cfg-chatterMax" class="input-number" min="10" max="360" value="40" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. Игровой режим -->
+        <section id="tab-games" class="tab-pane">
+          <!-- VIEW 1: GAME HUB (GRID OF ALL GAMES) -->
+          <div id="game-view-hub">
+            <div class="pane-header">
+              <h2>Игровой режим</h2>
+              <p class="pane-desc">Выберите игру для настройки макросов или добавьте новый игровой профиль.</p>
+            </div>
+
+            <!-- Hub Top Action Bar: Search & Quick Add -->
+            <div class="game-hub-bar">
+              <div class="game-hub-search-box">
+                <input type="text" id="search-games-hub" class="input-text" placeholder="Поиск по установленным профилям игр..." />
+              </div>
+              <div class="game-hub-create-box">
+                <input type="text" id="hub-quick-name" class="input-text" placeholder="Название новой игры..." />
+                <input type="text" id="hub-quick-exe" class="input-text" placeholder="Процесс (.exe)..." />
+                <button id="btn-hub-quick-browse" class="btn btn-secondary" title="Выбрать файл .exe">Обзор...</button>
+                <button id="btn-hub-quick-add" class="btn btn-primary">+ Добавить игру</button>
+              </div>
+            </div>
+
+            <!-- Games Grid Section -->
+            <div class="section-subhead" style="margin-top: 14px;">
+              <div class="section-title-group">
+                <h3>Игровые профили</h3>
+                <span id="hub-games-counter" class="badge-counter">0</span>
+              </div>
+              <button id="btn-toggle-games-hub" class="btn btn-small btn-secondary btn-collapse-toggle">Свернуть список игр</button>
+            </div>
+
+            <div id="games-grid" class="games-grid collapsible-section">
+              <!-- Dynamically populated game cards -->
+            </div>
+          </div>
+
+          <!-- VIEW 2: GAME EDITOR (DETAIL VIEW FOR SELECTED GAME) -->
+          <div id="game-view-editor" class="hidden">
+            <div class="editor-nav-bar">
+              <button id="btn-back-to-hub" class="btn btn-secondary btn-back">
+                ← Назад к списку игр
+              </button>
+              <div class="editor-game-title-group">
+                <div class="editor-game-monogram" id="editor-game-monogram" title="Нажмите, чтобы выбрать картинку для иконки игры">WT</div>
+                <div class="editor-game-info-col">
+                  <div class="editor-game-header-top">
+                    <span class="editor-game-title" id="editor-game-title">War Thunder</span>
+                    <span class="badge-status-chip active" id="editor-game-status">Активен</span>
+                  </div>
+                  <div class="game-icon-action-btns">
+                    <button id="btn-pick-game-icon" type="button" class="btn-link btn-xs">Выбрать картинку...</button>
+                    <button id="btn-extract-game-icon" type="button" class="btn-link btn-xs">Извлечь из .exe</button>
+                    <button id="btn-reset-game-icon" type="button" class="btn-link btn-xs text-danger hidden">Сбросить</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Game Profile Configuration Card -->
+            <div class="game-profile-card">
+              <div class="form-row">
+                <div class="form-col">
+                  <label for="game-name">Название игры</label>
+                  <input type="text" id="game-name" class="input-text" placeholder="War Thunder" />
+                </div>
+                <div class="form-col">
+                  <label for="game-process">Исполняемый файл (.exe)</label>
+                  <div class="input-action-row">
+                    <input type="text" id="game-process" class="input-text" placeholder="aces.exe" />
+                    <button id="btn-capture-window" class="btn btn-secondary">Захватить из окон</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row" style="margin-top: 10px;">
+                <div class="form-col">
+                  <label for="game-focus-mode">Режим контроля фокуса</label>
+                  <select id="game-focus-mode" class="input-select">
+                    <option value="foreground">Только когда окно активно (в фокусе) — Безопасный режим</option>
+                    <option value="running">Всегда, пока игра запущена (даже в фоне)</option>
+                  </select>
+                </div>
+                <div class="form-col" style="display:flex; align-items:flex-end; justify-content:space-between;">
+                  <label class="custom-checkbox" style="margin-bottom: 8px;">
+                    <input type="checkbox" id="game-enabled" checked />
+                    <span class="checkmark"></span>
+                    <span class="cb-label">Профиль включен и активен</span>
+                  </label>
+                  <button id="btn-remove-game" class="btn btn-danger btn-small">Удалить игру</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Commands Header Bar -->
+            <div class="commands-header-bar">
+              <div class="commands-search-box">
+                <input type="text" id="search-game-commands" class="input-text" placeholder="Поиск макроса или фразы (лтц, закрылки, радар...)..." />
+              </div>
+              <div class="commands-header-actions">
+                <span id="commands-count-label" class="commands-counter">0 макросов</span>
+                <button id="btn-toggle-all-macros" class="btn btn-small btn-secondary btn-collapse-toggle">Свернуть фразы</button>
+                <button id="btn-add-command-card" class="btn btn-primary">+ Создать макрос</button>
+              </div>
+            </div>
+
+            <div id="commands-list" class="commands-container">
+              <!-- Action cards populated dynamically -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. Приложения и Сайты -->
+        <section id="tab-apps" class="tab-pane">
+          <div class="pane-header">
+            <h2>Быстрый запуск приложений и сайтов</h2>
+            <p class="pane-desc">Привяжите голосовые команды Капри к открытию программ, утилит или веб-сайтов.</p>
+          </div>
+
+          <!-- Apps Section -->
+          <div class="apps-section">
+            <div class="section-subhead">
+              <div class="section-title-group">
+                <h3>Приложения на компьютере</h3>
+                <span id="apps-counter" class="badge-counter">0</span>
+              </div>
+              <div class="subhead-actions-row">
+                <button id="btn-toggle-apps" class="btn btn-small btn-secondary btn-collapse-toggle">Свернуть список</button>
+                <button id="btn-add-app-row" class="btn btn-small btn-secondary">+ Добавить приложение</button>
+              </div>
+            </div>
+            <div id="apps-collapsible-wrapper" class="collapsible-section">
+              <div class="search-bar-row">
+                <input type="text" id="search-apps" class="input-text search-input" placeholder="Поиск приложения или команды (блокнот, steam, дискорд...)..." />
+              </div>
+              <div class="table-container">
+                <table class="data-table" id="apps-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 32%;">Голосовая команда</th>
+                      <th>Путь к программе / команда</th>
+                      <th style="width: 105px;">Обзор</th>
+                      <th style="width: 45px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sites Section -->
+          <div class="apps-section" style="margin-top: 24px;">
+            <div class="section-subhead">
+              <div class="section-title-group">
+                <h3>Сайты и сервисы</h3>
+                <span id="sites-counter" class="badge-counter">0</span>
+              </div>
+              <div class="subhead-actions-row">
+                <button id="btn-toggle-sites" class="btn btn-small btn-secondary btn-collapse-toggle">Свернуть список</button>
+                <button id="btn-add-site-row" class="btn btn-small btn-secondary">+ Добавить сайт</button>
+              </div>
+            </div>
+            <div id="sites-collapsible-wrapper" class="collapsible-section">
+              <div class="search-bar-row">
+                <input type="text" id="search-sites" class="input-text search-input" placeholder="Поиск сайта или закладки (ютуб, google, yandex...)..." />
+              </div>
+              <div class="table-container">
+                <table class="data-table" id="sites-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 32%;">Голосовая команда</th>
+                      <th>URL адрес сайта</th>
+                      <th style="width: 45px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. О системе -->
+        <section id="tab-system" class="tab-pane">
+          <div class="pane-header">
+            <h2>О системе Capricorn v4</h2>
+            <p class="pane-desc">Информация о компонентах, статусе подключения и диагностика.</p>
+          </div>
+
+          <div class="system-status-grid">
+            <div class="status-card">
+              <div class="status-indicator online"></div>
+              <div class="status-info">
+                <h4>Electron Оверлей</h4>
+                <p>Порт: <code>47823</code> · Визуальный клиент и интерфейс</p>
+              </div>
+            </div>
+            <div class="status-card">
+              <div class="status-indicator online" id="status-backend-dot"></div>
+              <div class="status-info">
+                <h4>Python Бэкенд</h4>
+                <p>Порт: <code>47824</code> · Распознавание речи, DirectInput и ИИ</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="system-details-box">
+            <p><strong>Версия:</strong> Capricorn V4</p>
+            <p><strong>Модуль DirectInput:</strong> Аппаратные скан-коды Set 1 + поддержка боковых кнопок мыши Mouse4 / Mouse5.</p>
+            <p><strong>Репозитории:</strong></p>
+            <ul class="repo-list">
+              <li>Бэкенд и макросы: <a href="#" id="link-github-capri">github.com/Mintermonde/capricorn_v3</a></li>
+              <li>Визуальный движок: <a href="#" id="link-github-desktop">github.com/mochiiwuff/capri-desktop</a></li>
+            </ul>
+          </div>
+
+          <div class="system-actions">
+            <button id="btn-reload-overlay" class="btn btn-secondary">Перезагрузить оверлей</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Footer Action Bar -->
+    <footer class="settings-footer">
+      <div class="footer-status" id="save-status">Все изменения сохранены</div>
+      <div class="footer-actions">
+        <button id="btn-cancel" class="btn btn-secondary">Отмена</button>
+        <button id="btn-save" class="btn btn-primary">Сохранить настройки</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Modal: Add New Game Profile -->
+  <div id="modal-add-game" class="modal-backdrop hidden">
+    <div class="modal-box modal-compact">
+      <div class="modal-header">
+        <h3>Добавить новую игру</h3>
+        <button id="btn-close-add-game-modal" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="new-game-name">Название игры:</label>
+          <input type="text" id="new-game-name" class="input-text" placeholder="Например: Cyberpunk 2077, Dota 2, CS 2..." />
+        </div>
+        <div class="form-group">
+          <label for="new-game-exe">Исполняемый файл (.exe) игры:</label>
+          <div class="input-action-row">
+            <input type="text" id="new-game-exe" class="input-text" placeholder="Cyberpunk2077.exe" />
+            <button id="btn-browse-new-game-exe" class="btn btn-secondary">Обзор...</button>
+          </div>
+          <span class="input-hint">Или выберите игру из запущенных прямо сейчас окон:</span>
+        </div>
+        <div class="form-group" style="margin-top: 6px;">
+          <button id="btn-pick-from-running" class="btn btn-secondary" style="width:100%;">Выбрать из запущенных процессов</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-add-game" class="btn btn-secondary">Отмена</button>
+        <button id="btn-confirm-add-game" class="btn btn-primary">Создать профиль игры</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Capture Running Windows -->
+  <div id="windows-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Захват активного окна / процесса игры</h3>
+        <button id="btn-close-win-modal" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Выберите запущенное окно игры из списка ниже:</p>
+        <div id="running-windows-list" class="running-list">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-refresh-win-modal" class="btn btn-secondary">Обновить</button>
+        <button id="btn-cancel-win-modal" class="btn btn-secondary">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Key Recording Prompt -->
+  <div id="recorder-modal" class="modal-backdrop hidden">
+    <div class="modal-box modal-compact">
+      <div class="modal-header">
+        <h3>Запись клавиши или кнопки мыши</h3>
+        <button id="btn-close-rec-modal" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body recorder-center">
+        <div class="pulse-indicator"></div>
+        <p class="rec-title">Нажмите любую клавишу на клавиатуре или кнопку мыши...</p>
+        <p class="rec-subtitle">Поддерживаются: A-Z, F1-F12, комбинации, Mouse1, Mouse2, Mouse3, Mouse4 (Назад), Mouse5 (Вперед).</p>
+        <div id="rec-preview" class="rec-preview-box">Ожидание нажатия...</div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-accept-rec" class="btn btn-primary" disabled>Принять</button>
+        <button id="btn-cancel-rec" class="btn btn-secondary">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/settings.js"></script>
+</body>
+</html>

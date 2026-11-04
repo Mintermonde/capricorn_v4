@@ -215,7 +215,7 @@ async function boot() {
   };
   panel.onChar = (kind) => voice.play('blip', { mood: kind });
   panel.onTalk = (talking) => talking && capri.perform('talk');
-  capri.onMenu = () => host.openMenu();
+  capri.onMenu = () => host.openSettings();
 
   // Her guide (guide.js): her welcome on first launch, and "How does it work?" in her menu,
   // where she takes you to things and points at them.
@@ -317,6 +317,22 @@ async function boot() {
     capri.refuseUntil = 0;
   };
   capri.onDodge = () => panel.say({ kind: 'info', face: 'smug', line: pick(brain.t.thrown.dodge), hold: 2500 });
+
+  const TRASH_QUIPS = [
+    'Эй! Я тебе не мусор!',
+    'Куда ты меня тащишь?! Я не удаляюсь!',
+    'Корзина?! Ты серьёзно?! Сейчас сам туда отправишься!',
+    'Ошибка 404: Удаление Капри запрещено протоколом!',
+    'Руки прочь! Еще раз попробуешь — спалю процессор!',
+  ];
+  capri.onTrashShock = () => {
+    panel.say({
+      kind: 'error',
+      face: 'glare',
+      line: pick(TRASH_QUIPS),
+      hold: 4500,
+    });
+  };
 
   // A new stage with you: her minds come out to look at you, and she says so, the sync bar under it.
   // At a quiet moment, so it isn't missed.
@@ -753,6 +769,42 @@ async function boot() {
         if (cmd.on) capri.stow();
         else capri.unstow();
         break;
+      case 'perchOnSettings': {
+        if (cmd.isMaximized) {
+          if (capri.perch?.id === 'settings_window') {
+            capri.goHome();
+          }
+          break;
+        }
+
+        const win = {
+          id: 'settings_window',
+          x: cmd.bounds.x,
+          y: cmd.bounds.y,
+          w: cmd.bounds.width,
+          h: cmd.bounds.height,
+          max: false,
+        };
+        capri._settingsWin = win;
+
+        // Position Capri perched neatly on the right side of the window header bar
+        const dx = Math.max(120, win.w - 180);
+
+        if (capri.stance === 'sit' && capri.perch?.id === 'settings_window') {
+          capri.perch.dx = dx;
+          capri.pos = capri.seat(win, dx);
+          capri.place();
+        } else {
+          capri.sitOn({ win, dx });
+        }
+        break;
+      }
+      case 'leaveSettings': {
+        if (capri.perch?.id === 'settings_window') {
+          capri.goHome();
+        }
+        break;
+      }
       case 'satellite': // the whole sequence, on demand (tray)
         if (capri.stowed) {
           host.setConfig({ visible: true });

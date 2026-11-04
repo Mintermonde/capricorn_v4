@@ -222,8 +222,34 @@ class Capri(QObject):
         assistant = self
 
         class CommandHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == "/health":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b'{"ok": true, "version": "4.0"}')
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
             def do_POST(self):
-                if self.path == "/cmd":
+                if self.path == "/reload":
+                    try:
+                        from games import game_manager
+                        game_manager.load()
+                        assistant.config = assistant._load_config()
+                        log.info("Settings & games reloaded via HTTP /reload")
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(b'{"ok": true}')
+                        return
+                    except Exception as e:
+                        log.exception("Error reloading settings: %s", e)
+                        self.send_response(500)
+                        self.end_headers()
+                        return
+                elif self.path == "/cmd":
                     try:
                         length = int(self.headers.get("Content-Length", 0))
                         raw = self.rfile.read(length).decode("utf-8", "replace").strip()
@@ -813,13 +839,14 @@ def main():
             mute_act.setText("Включить микрофон" if capri.is_muted() else "Отключить микрофон (Mute)")
     menu.aboutToShow.connect(update_tray_menu)
 
-    tray = QSystemTrayIcon(tray_icon())
-    tray.setToolTip("Капри — голосовой ассистент")
-    tray.setContextMenu(menu)
-    tray.activated.connect(lambda r: capri.call_from_click()
-                           if r == QSystemTrayIcon.ActivationReason.Trigger else None)
-    tray.show()
-    avatar.menu_requested.connect(lambda pos: menu.popup(pos))
+    if cfg.get("ui_mode") != "electron":
+        tray = QSystemTrayIcon(tray_icon())
+        tray.setToolTip("Капри — голосовой ассистент")
+        tray.setContextMenu(menu)
+        tray.activated.connect(lambda r: capri.call_from_click()
+                               if r == QSystemTrayIcon.ActivationReason.Trigger else None)
+        tray.show()
+        avatar.menu_requested.connect(lambda pos: menu.popup(pos))
 
     capri.start()
     sys.exit(app.exec())

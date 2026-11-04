@@ -3,6 +3,7 @@
 const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
+const { spawn } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const {
   app, BrowserWindow, Tray, Menu, ipcMain, screen, protocol, net, shell, globalShortcut, nativeImage,
@@ -56,6 +57,7 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let overlay = null;
+let settingsWindow = null;
 let tray = null;
 let trayMenu = null; // also what she opens when you right-click her
 let demoTimer = null;
@@ -387,6 +389,11 @@ function rebuildTray() {
   const cancelReminder = (id) => updateConfig({ reminders: (config.load().reminders || []).filter((r) => r.id !== id) });
 
   const menu = Menu.buildFromTemplate([
+    {
+      label: 'Настройки Capri...',
+      click: () => openSettingsWindow(),
+    },
+    { type: 'separator' },
     { label: t.online(PORT), enabled: false },
     { label: t.sync(Math.min(100, Math.floor(xp / 10)), t.stages[stage]), enabled: false },
     { type: 'separator' },
@@ -406,181 +413,21 @@ function rebuildTray() {
         }))
         : [{ label: t.noReminders, enabled: false }],
     },
-    { label: t.custom, click: () => sendCommand('customize') },
-    { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
-    { type: 'separator' },
+    { label: cfg.visible ? 'Спрятать Капри' : 'Показать Капри', accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     {
-      label: t.size,
-      submenu: [[t.small, 0.45], [t.medium, 0.6], [t.large, 0.8]].map(([label, scale]) => ({
-        label, type: 'radio', checked: Math.abs(cfg.scale - scale) < 0.01, click: () => updateConfig({ scale }),
-      })),
-    },
-    {
-      label: t.sound,
-      submenu: [
-        { label: t.mute, type: 'checkbox', checked: cfg.muted, click: (item) => updateConfig({ muted: item.checked }) },
-        { type: 'separator' },
-        {
-          label: t.soundsDir,
-          click: () => {
-            fs.mkdirSync(userSoundsDir(), { recursive: true });
-            shell.openPath(userSoundsDir());
-          },
-        },
-      ],
-    },
-    {
-      label: t.screen,
-      enabled: screens.length > 1,
-      submenu: [
-        ...screens.map((d, i) => ({
-          label: `${i + 1} — ${d.size.width}×${d.size.height}`,
-          type: 'radio',
-          checked: d.id === current,
-          click: () => d.id !== current && sendCommand('goScreen', { id: d.id }), // she goes over there herself
-        })),
-        { type: 'separator' },
-        { label: t.follow, type: 'checkbox', checked: cfg.follow !== false, click: (item) => updateConfig({ follow: item.checked }) },
-      ],
-    },
-    {
-      label: t.chatModel,
-      submenu: [
-        { label: t.aiSetup, click: () => sendCommand('setupChat') },
-        { type: 'separator' },
-        ...Object.entries(llm.PROVIDERS).map(([provider, p]) => ({
-          label: p.label, type: 'radio', checked: cfg.provider === provider, click: () => pickProvider(provider),
-        })),
-        { type: 'separator' },
-        ...(chatModels?.length
-          ? chatModels.map((name) => ({
-            label: cloud.free.includes(name) ? `${name} · ${t.cloudFree}` : name,
-            type: 'radio', checked: name === pickModel(cfg), click: () => updateConfig({ chatModel: name }),
-          }))
-          : [{ label: (chatError || t.noOllama).slice(0, 80), enabled: false }]),
-        // Ollama's free cloud models when you're signed in to it, fetched on the click (it takes a second)
-        ...(cfg.provider === 'ollama' && chatModels ? [
-          ...cloud.free.filter((name) => !chatModels.includes(name)).map((name) => ({
-            label: `${name} · ${t.cloudFree}`, type: 'radio', checked: false, click: () => fetchModel(name).catch(() => rebuildTray()),
-          })),
-          ...(cloud.account?.signin ? [{ label: t.cloudSignin, click: signInToOllama }] : []),
-        ] : []),
-        { type: 'separator' },
-        ...(cfg.provider === 'claude' ? [
-          { label: `Claude Code: ${cfg.claudeCwd || app.getPath('home')}`, click: pickClaudeFolder },
-          {
-            label: 'Claude Code permissions',
-            submenu: llm.CLAUDE_MODES.map((mode) => ({
-              label: mode, type: 'radio', checked: cfg.claudeMode === mode, click: () => updateConfig({ claudeMode: mode }),
-            })),
-          },
-        ] : []),
-        { label: t.forget, click: forgetChats },
-        // the key (or the address) of the one picked, pasted in her panel
-        { label: t.apiKey, click: () => sendCommand('setupKey') },
-      ],
-    },
-    { label: t.wander, type: 'checkbox', checked: cfg.wander, click: (item) => updateConfig({ wander: item.checked }) },
-    { label: t.possess, type: 'checkbox', checked: cfg.possess, click: (item) => updateConfig({ possess: item.checked }) },
-    { label: t.jealous, type: 'checkbox', checked: cfg.jealous !== false, click: (item) => updateConfig({ jealous: item.checked }) },
-    { label: t.pcReact, type: 'checkbox', checked: cfg.pcReact !== false, click: (item) => updateConfig({ pcReact: item.checked }) },
-    {
-      label: '🎮 Игровой режим (Game Mode)',
-      submenu: [
-        {
-          label: 'War Thunder (aces.exe): Авто-детект активен',
-          enabled: false,
-        },
-        {
-          label: 'Бинды по умолчанию: ЛТЦ (D+F), Закрылки (F), Шасси (G), Радар (Alt+R)',
-          enabled: false,
-        },
-        { type: 'separator' },
-        {
-          label: 'Настроить макросы и клавиши (games.json)...',
-          click: () => {
-            const gamesPath = path.resolve(ROOT, '..', 'capricorn', 'games.json');
-            shell.openPath(gamesPath);
-          },
-        },
-      ],
-    },
-    {
-      // she asks first (what she'll send where), then turns it on herself
-      label: t.lookAuto, type: 'checkbox', checked: Boolean(cfg.watchScreen),
-      click: (item) => {
-        sendCommand('watchScreen', { on: item.checked });
-        rebuildTray(); // as it is until she's asked
+      label: 'Перезагрузить оверлей',
+      click: () => {
+        overlay?.webContents.reloadIgnoringCache();
       },
     },
-    {
-      label: t.rest,
-      submenu: [['corner', t.restCorner], ['taskbar', t.restTaskbar]].map(([rest, label]) => ({
-        label, type: 'radio', checked: cfg.rest === rest, click: () => updateConfig({ rest }),
-      })),
-    },
-    // the coding assistant she watches (a new one: she says hello and offers to plug herself in), or none
-    {
-      label: t.watch,
-      submenu: [
-        ...Object.entries(ASSISTANTS).map(([id, { name }]) => ({
-          label: name,
-          type: 'radio',
-          checked: cfg.claude && watched.id === id,
-          click: () => {
-            const other = watched.id !== id;
-            updateConfig({ claude: true, assistant: id, ...(other && { linked: false, welcomed: false }) });
-            if (other) sendCommand('assistantChanged');
-          },
-        })),
-        { label: t.watchNone, type: 'radio', checked: !cfg.claude, click: () => updateConfig({ claude: false }) },
-      ],
-    },
-    {
-      label: t.motion,
-      submenu: [['auto', t.motionAuto], ['full', t.motionFull], ['reduced', t.motionReduced]].map(([motion, label]) => ({
-        label, type: 'radio', checked: cfg.motion === motion, click: () => updateConfig({ motion, motionAsked: true }),
-      })),
-    },
-    {
-      label: t.display,
-      // only read when she starts: she restarts in the mode picked
-      submenu: [['auto', t.displayAuto], ['gl', t.displayGl], ['software', t.displaySoftware]].map(([render, label]) => ({
-        label, type: 'radio', checked: cfg.render === render,
-        click: () => {
-          if (cfg.render === render) return;
-          config.save({ render });
-          app.relaunch();
-          app.exit(0);
-        },
-      })),
-    },
-    {
-      label: t.lang,
-      submenu: [[t.auto, 'auto'], ...LANGS.map((lang) => [TRAY[lang].name, lang])].map(([label, lang]) => ({
-        label, type: 'radio', checked: cfg.lang === lang, click: () => updateConfig({ lang }),
-      })),
-    },
-    {
-      label: t.startup,
-      type: 'checkbox',
-      checked: app.getLoginItemSettings(loginItemOptions()).openAtLogin,
-      click: (item) => app.setLoginItemSettings({ ...loginItemOptions(), openAtLogin: item.checked }),
-    },
-    // her hooks, while she watches Claude Code
-    ...(cfg.claude ? [
-      { type: 'separator' },
-      hookState.installed
-        ? { label: t.hooksOn, enabled: false }
-        : { label: t.hooksOff, click: () => runHooks('install') },
-      ...(hookState.installed ? [{ label: t.hooksRemove, click: () => runHooks('uninstall') }] : []),
-    ] : []),
     { type: 'separator' },
-    { label: t.quit, click: () => app.quit() },
+    { label: 'Выйти из Capri', click: () => app.quit() },
   ]);
   tray.setContextMenu(menu);
   trayMenu = menu;
 }
+
+
 
 // Run from a clone (`npm start`), electron.exe alone would open the default Electron app at login:
 // it needs the project folder as argument.
@@ -787,7 +634,327 @@ function createTray() {
   rebuildTray();
 }
 
+function getBackendConfigPath() {
+  const candidates = [
+    path.resolve(ROOT, '..', 'config.json'),
+    path.resolve(ROOT, '..', 'capricorn', 'config.json'),
+    'C:\\Capri\\capricorn\\config.json',
+    path.resolve(process.cwd(), 'config.json'),
+    path.resolve(process.cwd(), '..', 'config.json'),
+    path.resolve(ROOT, 'config.json'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return candidates[0];
+}
+
+function getGamesJsonPath() {
+  const candidates = [
+    path.resolve(ROOT, '..', 'games.json'),
+    path.resolve(ROOT, '..', 'capricorn', 'games.json'),
+    'C:\\Capri\\capricorn\\games.json',
+    path.resolve(process.cwd(), 'games.json'),
+    path.resolve(process.cwd(), '..', 'games.json'),
+    path.resolve(ROOT, 'games.json'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return candidates[0];
+}
+
+function getOpenWindows() {
+  return new Promise((resolve) => {
+    const ps = spawn('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-Command',
+      "Get-Process | Where-Object { $_.MainWindowTitle } | ForEach-Object { [PSCustomObject]@{ process = $_.ProcessName + '.exe'; title = $_.MainWindowTitle; path = $_.Path } } | ConvertTo-Json -Compress"
+    ], { windowsHide: true });
+
+    let out = '';
+    ps.stdout.on('data', (d) => { out += d; });
+    ps.on('close', () => {
+      try {
+        const parsed = JSON.parse(out);
+        const list = (Array.isArray(parsed) ? parsed : [parsed]).filter(Boolean).map((p) => ({
+          process: String(p.process || ''),
+          title: String(p.title || ''),
+          path: String(p.path || ''),
+        }));
+        resolve(list);
+      } catch {
+        resolve([]);
+      }
+    });
+    ps.on('error', () => resolve([]));
+  });
+}
+
+function notifyCapriPerchOnSettings() {
+  if (!settingsWindow || settingsWindow.isDestroyed() || !settingsWindow.isVisible() || settingsWindow.isMinimized()) {
+    return;
+  }
+  const bounds = settingsWindow.getBounds();
+  sendCommand('perchOnSettings', {
+    bounds,
+    isMaximized: settingsWindow.isMaximized(),
+  });
+}
+
+function openSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.show();
+    settingsWindow.focus();
+    notifyCapriPerchOnSettings();
+    return settingsWindow;
+  }
+
+  const bounds = screen.getPrimaryDisplay().bounds;
+  const width = 980;
+  const height = 660;
+  const x = Math.round(bounds.x + (bounds.width - width) / 2);
+  const y = Math.round(bounds.y + (bounds.height - height) / 2);
+
+  settingsWindow = new BrowserWindow({
+    x, y,
+    width,
+    height,
+    minWidth: 820,
+    minHeight: 560,
+    frame: false,
+    transparent: false,
+    resizable: true,
+    show: false,
+    backgroundColor: '#120f1c',
+    title: 'Capri Settings',
+    webPreferences: {
+      preload: path.join(__dirname, '..', 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      devTools: true,
+    },
+  });
+
+  settingsWindow.loadURL('capri://app/src/renderer/settings.html');
+
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow.show();
+    settingsWindow.focus();
+    notifyCapriPerchOnSettings();
+  });
+
+  settingsWindow.on('show', () => notifyCapriPerchOnSettings());
+  settingsWindow.on('move', () => notifyCapriPerchOnSettings());
+  settingsWindow.on('moved', () => notifyCapriPerchOnSettings());
+  settingsWindow.on('resize', () => notifyCapriPerchOnSettings());
+  settingsWindow.on('resized', () => notifyCapriPerchOnSettings());
+
+  settingsWindow.on('maximize', () => {
+    settingsWindow?.webContents.send('settings:maximize-changed', true);
+    notifyCapriPerchOnSettings();
+  });
+
+  settingsWindow.on('unmaximize', () => {
+    settingsWindow?.webContents.send('settings:maximize-changed', false);
+    notifyCapriPerchOnSettings();
+  });
+
+  settingsWindow.on('minimize', () => sendCommand('leaveSettings'));
+  settingsWindow.on('hide', () => sendCommand('leaveSettings'));
+  settingsWindow.on('closed', () => {
+    sendCommand('leaveSettings');
+    settingsWindow = null;
+  });
+
+  return settingsWindow;
+}
+
 function registerIpc() {
+  ipcMain.on('settings:open', () => openSettingsWindow());
+  ipcMain.on('settings:close', () => settingsWindow?.close());
+  ipcMain.on('settings:minimize', () => settingsWindow?.minimize());
+  ipcMain.handle('settings:toggle-maximize', () => {
+    if (!settingsWindow || settingsWindow.isDestroyed()) return false;
+    if (settingsWindow.isMaximized()) {
+      settingsWindow.unmaximize();
+      return false;
+    } else {
+      settingsWindow.maximize();
+      return true;
+    }
+  });
+  ipcMain.handle('settings:is-maximized', () => {
+    return settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow.isMaximized() : false;
+  });
+
+  ipcMain.handle('settings:load-all', async () => {
+    const visual = rendererConfig();
+    let backend = {};
+    let games = { auto_detect: true, games: {} };
+
+    try {
+      const bp = getBackendConfigPath();
+      if (fs.existsSync(bp)) backend = JSON.parse(fs.readFileSync(bp, 'utf8'));
+    } catch (err) {
+      console.error('[capri] could not read backend config:', err.message);
+    }
+
+    try {
+      const gp = getGamesJsonPath();
+      if (fs.existsSync(gp)) games = JSON.parse(fs.readFileSync(gp, 'utf8'));
+    } catch (err) {
+      console.error('[capri] could not read games.json:', err.message);
+    }
+
+    return { visual, backend, games };
+  });
+
+  ipcMain.handle('settings:save-all', async (_e, { visual, backend, games }) => {
+    try {
+      if (visual && typeof visual === 'object') {
+        updateConfig(visual);
+      }
+
+      if (backend && typeof backend === 'object') {
+        const bp = getBackendConfigPath();
+        let currentBackend = {};
+        try {
+          if (fs.existsSync(bp)) currentBackend = JSON.parse(fs.readFileSync(bp, 'utf8'));
+        } catch {}
+        const mergedBackend = { ...currentBackend, ...backend };
+        fs.writeFileSync(bp, JSON.stringify(mergedBackend, null, 2), 'utf8');
+      }
+
+      if (games && typeof games === 'object') {
+        const gp = getGamesJsonPath();
+        fs.writeFileSync(gp, JSON.stringify(games, null, 2), 'utf8');
+      }
+
+      // Notify Python backend if running
+      try {
+        await fetch('http://127.0.0.1:47824/reload', { method: 'POST', signal: AbortSignal.timeout(1000) });
+      } catch {}
+
+      return { ok: true };
+    } catch (err) {
+      console.error('[capri] error saving all settings:', err);
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('settings:get-open-windows', async () => getOpenWindows());
+
+  ipcMain.handle('settings:select-image', async () => {
+    const res = await dialog.showOpenDialog(settingsWindow || overlay, {
+      title: 'Выберите изображение для иконки игры',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Изображения (*.png, *.jpg, *.jpeg, *.ico, *.webp, *.svg)', extensions: ['png', 'jpg', 'jpeg', 'ico', 'webp', 'svg'] },
+        { name: 'Все файлы', extensions: ['*'] }
+      ]
+    });
+    if (!res.canceled && res.filePaths?.[0]) {
+      const p = res.filePaths[0];
+      try {
+        const buf = fs.readFileSync(p);
+        const ext = path.extname(p).toLowerCase().replace('.', '') || 'png';
+        const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'ico' ? 'image/x-icon' : (ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg' : `image/${ext}`;
+        return `data:${mime};base64,${buf.toString('base64')}`;
+      } catch (err) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  ipcMain.handle('settings:get-file-icon', async (_e, filePath) => {
+    try {
+      if (filePath && fs.existsSync(filePath)) {
+        const nativeImg = await app.getFileIcon(filePath, { size: 'large' });
+        return nativeImg.toDataURL();
+      }
+    } catch (e) {
+      console.warn('[capri] getFileIcon error:', e.message);
+    }
+    return null;
+  });
+
+  ipcMain.handle('settings:select-file', async (_e, opts = {}) => {
+    const res = await dialog.showOpenDialog(settingsWindow || overlay, {
+      properties: ['openFile'],
+      filters: opts.filters || [{ name: 'Все файлы', extensions: ['*'] }],
+    });
+    if (!res.canceled && res.filePaths?.[0]) {
+      return res.filePaths[0];
+    }
+    return null;
+  });
+
+  ipcMain.handle('settings:test-ai', async (_e, { provider, key, url, model }) => {
+    try {
+      if (provider === 'gemini') {
+        const apiKey = key || config.load().apiKeys?.gemini;
+        const targetUrl = url || config.load().geminiUrl || 'https://generativelanguage.googleapis.com';
+        const fetchUrl = targetUrl.includes('/v1beta/openai')
+          ? `${targetUrl}/models`
+          : `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+        const res = await fetch(fetchUrl, {
+          headers: targetUrl.includes('/v1beta/openai') ? { 'Authorization': `Bearer ${apiKey}` } : {},
+          signal: AbortSignal.timeout(6000),
+        });
+        if (res.ok) return { ok: true, status: 'Соединение успешно! API ключ и доступ к Gemini работают.' };
+        return { ok: false, error: `Код ${res.status}: ${res.statusText}` };
+      } else if (provider === 'ollama') {
+        const targetUrl = url || 'http://127.0.0.1:11434';
+        const res = await fetch(`${targetUrl}/api/tags`, { signal: AbortSignal.timeout(4000) });
+        if (res.ok) {
+          const body = await res.json();
+          const count = body.models?.length || 0;
+          return { ok: true, status: `Ollama доступна! Установлено локальных моделей: ${count}` };
+        }
+        return { ok: false, error: 'Ollama не отвечает на порту 11434' };
+      } else if (provider === 'anthropic') {
+        const apiKey = key || config.load().apiKeys?.anthropic;
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: model || 'claude-3-5-haiku-latest',
+            max_tokens: 5,
+            messages: [{ role: 'user', content: 'hi' }]
+          }),
+          signal: AbortSignal.timeout(6000)
+        });
+        if (res.ok) return { ok: true, status: 'Соединение с Anthropic Claude успешно!' };
+        return { ok: false, error: `Код ${res.status}: ${res.statusText}` };
+      } else {
+        const endpoints = {
+          openai: 'https://api.openai.com/v1/models',
+          deepseek: 'https://api.deepseek.com/v1/models',
+          groq: 'https://api.groq.com/openai/v1/models',
+          openrouter: 'https://openrouter.ai/api/v1/models',
+          mistral: 'https://api.mistral.ai/v1/models',
+        };
+        const fetchUrl = url ? `${url.replace(/\/+$/, '')}/models` : (endpoints[provider] || 'https://api.openai.com/v1/models');
+        const res = await fetch(fetchUrl, {
+          headers: {
+            authorization: `Bearer ${key}`,
+            'User-Agent': 'Mozilla/5.0 Capri/1.0',
+          },
+          signal: AbortSignal.timeout(6000),
+        });
+        if (res.ok) return { ok: true, status: `Соединение с ${provider.toUpperCase()} успешно!` };
+        return { ok: false, error: `Код ${res.status}: ${res.statusText}` };
+      }
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   ipcMain.on('overlay:interactive', (_e, on) => {
     overlay?.setIgnoreMouseEvents(!on, { forward: true });
   });

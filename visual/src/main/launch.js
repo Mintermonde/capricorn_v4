@@ -291,10 +291,21 @@ function siteUrl(address) {
   }
 }
 
+let lastOpenedSiteUrl = '';
+let lastOpenedSiteTime = 0;
+
 async function site(address) {
   const url = siteUrl(String(address || '').trim());
   if (!url) return false;
-  await shell.openExternal(url.toString());
+  const str = url.toString();
+  const now = Date.now();
+  // Защита от дублирующего открытия сайтов в браузере
+  if (str === lastOpenedSiteUrl && now - lastOpenedSiteTime < 4000) {
+    return true;
+  }
+  lastOpenedSiteUrl = str;
+  lastOpenedSiteTime = now;
+  await shell.openExternal(str);
   return true;
 }
 

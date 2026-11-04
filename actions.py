@@ -1152,6 +1152,8 @@ class Actions:
         self.last_chat_target = ""     # имя контакта/чата, с которым сейчас работаем
         self.media_paused = None      # какой плеер Капри поставила на паузу
         self.local = None
+        self._last_opened_url = None   # debounce для предотвращения двойного открытия сайтов
+        self._last_opened_time = 0.0
         self.routes = [
             (r"^(выход|выключись|отключись|заверши работу|завершить работу)$", self.quit),
             (r"^(спрячься|скройся|исчезни|пока|отбой|свободна)\b|"
@@ -1390,12 +1392,31 @@ class Actions:
                     return r
         return None
 
+    def open_url(self, url):
+        """Безопасное открытие URL в браузере с защитой от дублирующих срабатываний."""
+        if not url:
+            return
+        now = time.time()
+        norm_url = str(url).strip()
+        last_url = getattr(self, "_last_opened_url", None)
+        last_time = getattr(self, "_last_opened_time", 0.0)
+        if last_url == norm_url and (now - last_time) < 3.5:
+            log.info("Дублирующий вызов открытия сайта проигнорирован (debounce %.2fs): %s", now - last_time, norm_url)
+            return
+        self._last_opened_url = norm_url
+        self._last_opened_time = now
+        log.info("Открытие сайта в браузере: %s", norm_url)
+        try:
+            webbrowser.open(norm_url)
+        except Exception as e:
+            log.error("Ошибка при открытии URL %s: %s", norm_url, e)
+
     def fallback(self, cmd, force_search=False):
         """Без ИИ: вопрос ищем в Google, остальное — «не знаю команды»."""
         c = norm(cmd)
         if force_search or re.match(r"^(что|кто|как|какой|какая|какое|какие|почему|зачем|сколько|где|когда|куда|"
                      r"откуда|чем|чей|расскажи|объясни|скажи)\b", c):
-            webbrowser.open("https://www.google.com/search?q=" + urllib.parse.quote(cmd))
+            self.open_url("https://www.google.com/search?q=" + urllib.parse.quote(cmd))
             return Reply(line("search_q"))
         return Reply(line("unknown"))
 
@@ -1982,7 +2003,7 @@ class Actions:
             fake_m = re.match(r"(?P<t>.+)", q)
             return self.open(c, fake_m)
 
-        webbrowser.open("https://www.google.com/search?q=" + urllib.parse.quote(q))
+        self.open_url("https://www.google.com/search?q=" + urllib.parse.quote(q))
         return Reply(line("web", q=q))
 
     def open(self, c, m):
@@ -2023,7 +2044,7 @@ class Actions:
         # Если указан домен голосом («хабр точка ком», «vk.com», «reddit.com») — сразу открываем в браузере
         spoken_url = parse_spoken_domain(t)
         if spoken_url:
-            webbrowser.open(spoken_url)
+            self.open_url(spoken_url)
             return Reply(line("open", t=t))
 
         # Явный запрос сайта («открой сайт ...», «в браузере ...»):
@@ -2031,7 +2052,7 @@ class Actions:
             target_url = self._get_known_site(t)
             if not target_url:
                 target_url = resolve_site_url(t)
-            webbrowser.open(target_url)
+            self.open_url(target_url)
             return Reply(line("open", t=t.title() if t else "сайт"))
 
         # --- ПРИОРИТЕТ 1: ЛОКАЛЬНЫЕ ДЕСКТОПНЫЕ ПРИЛОЖЕНИЯ ---
@@ -2082,7 +2103,7 @@ class Actions:
         # 2.1 Проверяем, не сайт ли это из списка известных сайтов (self.sites)
         target_url = self._get_known_site(t)
         if target_url:
-            webbrowser.open(target_url)
+            self.open_url(target_url)
             return Reply(line("open", t=t.title()))
 
         # 2.2 Если запрос явно был про запуск программы/игры («запусти ...», «открой игру ...», «открой программу ...») —
@@ -2098,7 +2119,7 @@ class Actions:
         # 2.3 Если это поисковый/навигационный запрос к известному веб-ресурсу через Google Suggest:
         target_url = resolve_site_url(t)
         if target_url and not target_url.startswith("https://www.google.com/search"):
-            webbrowser.open(target_url)
+            self.open_url(target_url)
             return Reply(line("open", t=t.title()))
 
         # 2.4 Иначе говорим, что приложение не найдено
@@ -2441,10 +2462,9 @@ class Actions:
         answer = antigravity_bridge.run_task(task_text)
         return Reply(answer, action="wave")
 
-    @staticmethod
-    def _run(target):
+    def _run(self, target):
         if target.startswith(("http://", "https://")):
-            webbrowser.open(target)
+            self.open_url(target)
             return
         try:
             os.startfile(target)
