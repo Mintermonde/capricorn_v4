@@ -4,6 +4,7 @@
 config.json
 config.local.json
 config.*.json
+!config.example.json
 *.local.json
 *.env
 .env

@@ -27,7 +27,7 @@ def _get_api_key():
 def _get_workspaces():
     desktop = os.path.join(os.path.expanduser("~"), "Desktop")
     user_home = os.path.expanduser("~")
-    workspaces = [desktop, user_home, "C:\\Capri"]
+    workspaces = [desktop, user_home, BASE_DIR]
     return [w for w in workspaces if os.path.exists(w)]
 
 

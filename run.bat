@@ -2,18 +2,9 @@
 cd /d "%~dp0"
 
 :: 1. Launch Electron Visual Window
-set "ELECTRON_DIR="
-if exist "%~dp0visual\node_modules\electron\dist\electron.exe" (
-    set "ELECTRON_DIR=%~dp0visual"
-) else if exist "C:\Capri\visual\node_modules\electron\dist\electron.exe" (
-    set "ELECTRON_DIR=C:\Capri\visual"
-) else if exist "%~dp0visual" (
-    set "ELECTRON_DIR=%~dp0visual"
-) else (
-    set "ELECTRON_DIR=C:\Capri\visual"
-)
-
+set "ELECTRON_DIR=%~dp0visual"
 set "ELECTRON_EXE=%ELECTRON_DIR%\node_modules\electron\dist\electron.exe"
+
 if exist "%ELECTRON_EXE%" (
     start "" /D "%ELECTRON_DIR%" "%ELECTRON_EXE%" .
 ) else (

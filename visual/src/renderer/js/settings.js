@@ -253,7 +253,7 @@ const PROVIDER_PRESETS = {
   gemini: {
     name: 'Google Gemini',
     keyPlaceholder: 'AQ.Ab8...',
-    urlPlaceholder: 'https://capricorn.shmidt-foton.workers.dev/v1beta/openai (или оставьте пустым)',
+    urlPlaceholder: 'https://your-worker.workers.dev/v1beta/openai (или оставьте пустым)',
     urlHint: 'Cloudflare Worker или прокси для прямого доступа без VPN из РФ. При прямом доступе оставьте пустым.',
     models: [
       { id: 'gemini-3.6-flash', label: 'gemini-3.6-flash (Рекомендуется — Флагманский баланс)' },

@@ -20,7 +20,7 @@ const DEFAULTS = {
   provider: 'ollama', // who answers her chat: a key of llm.js PROVIDERS
   apiKeys: {},       // { openai: 'sk-...' }, else the provider's env variable
   customUrl: '',     // the 'custom' provider: any OpenAI-compatible base URL (http://host:port/v1)
-  geminiUrl: 'https://capricorn.shmidt-foton.workers.dev/v1beta/openai', // Cloudflare Worker proxy for Gemini
+  geminiUrl: '',     // Cloudflare Worker proxy for Gemini (e.g. 'https://your-worker.workers.dev/v1beta/openai')
   claudeCwd: null,   // the folder Claude Code works in (null: your home folder)
   userName: '',      // what she calls you
   persona: '',       // how you want her, in your words (her chat)

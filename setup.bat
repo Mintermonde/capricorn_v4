@@ -21,6 +21,10 @@ if exist "%~dp0visual\package.json" (
         echo.
         echo [Capri] Installing visual interface dependencies (Node.js/Electron)...
         cd /d "%~dp0visual" && call npm install && cd /d "%~dp0"
+    ) || (
+        echo.
+        echo [Capri] Node.js/npm not found. Please install Node.js LTS from https://nodejs.org/
+        echo         to run the modern visual interface.
     )
 )
 pause

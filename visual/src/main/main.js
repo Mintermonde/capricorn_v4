@@ -305,12 +305,37 @@ function rendererConfig() {
   return { ...cfg, keys: Object.keys(apiKeys || {}), assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floorGap: overlayArea().gap };
 }
 
-const PYTHON_CONFIG_PATH = path.resolve(ROOT, '..', 'capricorn', 'config.json');
+function getBackendConfigPath() {
+  const candidates = [
+    path.resolve(ROOT, '..', 'config.json'),
+    path.resolve(process.cwd(), 'config.json'),
+    path.resolve(process.cwd(), '..', 'config.json'),
+    path.resolve(ROOT, 'config.json'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return candidates[0];
+}
+
+function getGamesJsonPath() {
+  const candidates = [
+    path.resolve(ROOT, '..', 'games.json'),
+    path.resolve(process.cwd(), 'games.json'),
+    path.resolve(process.cwd(), '..', 'games.json'),
+    path.resolve(ROOT, 'games.json'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return candidates[0];
+}
 
 function syncToPythonConfig(patch) {
   try {
-    if (!fs.existsSync(PYTHON_CONFIG_PATH)) return;
-    const raw = fs.readFileSync(PYTHON_CONFIG_PATH, 'utf8');
+    const pythonConfigPath = getBackendConfigPath();
+    if (!fs.existsSync(pythonConfigPath)) return;
+    const raw = fs.readFileSync(pythonConfigPath, 'utf8');
     const pyCfg = JSON.parse(raw);
     let changed = false;
 
@@ -345,7 +370,7 @@ function syncToPythonConfig(patch) {
     }
 
     if (changed) {
-      fs.writeFileSync(PYTHON_CONFIG_PATH, JSON.stringify(pyCfg, null, 2), 'utf8');
+      fs.writeFileSync(pythonConfigPath, JSON.stringify(pyCfg, null, 2), 'utf8');
       console.log('[capri] synced model/provider to capricorn config.json:', pyCfg.model, pyCfg.ai_provider);
     }
   } catch (err) {
@@ -632,36 +657,6 @@ function createTray() {
   tray.setToolTip('Capri');
   tray.on('click', () => sendCommand('status'));
   rebuildTray();
-}
-
-function getBackendConfigPath() {
-  const candidates = [
-    path.resolve(ROOT, '..', 'config.json'),
-    path.resolve(ROOT, '..', 'capricorn', 'config.json'),
-    'C:\\Capri\\capricorn\\config.json',
-    path.resolve(process.cwd(), 'config.json'),
-    path.resolve(process.cwd(), '..', 'config.json'),
-    path.resolve(ROOT, 'config.json'),
-  ];
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
-  }
-  return candidates[0];
-}
-
-function getGamesJsonPath() {
-  const candidates = [
-    path.resolve(ROOT, '..', 'games.json'),
-    path.resolve(ROOT, '..', 'capricorn', 'games.json'),
-    'C:\\Capri\\capricorn\\games.json',
-    path.resolve(process.cwd(), 'games.json'),
-    path.resolve(process.cwd(), '..', 'games.json'),
-    path.resolve(ROOT, 'games.json'),
-  ];
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
-  }
-  return candidates[0];
 }
 
 function getOpenWindows() {

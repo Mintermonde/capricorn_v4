@@ -19,7 +19,6 @@ from actions import Actions, Reply
 from ai import AI
 from local_ai import LocalAI
 from persona import line
-from avatar import Avatar
 import bridge_client
 from voice import (Listener, Speaker, default_input_name, google_stt, input_devices, make_glitch_sound,
                    make_blip_sound, play_sound_async)
@@ -33,6 +32,7 @@ log = logging.getLogger("capri")
 log.info("Python %s", sys.version.split()[0])
 
 DEFAULTS = {
+    "ui_mode": "electron",
     "enable_ai": False,
     "local_ai": True,
     "local_model": "qwen3:8b",
@@ -766,20 +766,26 @@ def main():
     app.setQuitOnLastWindowClosed(False)
     cfg = load_config()
 
-    avatar = Avatar(os.path.join(BASE, "assets"))
-    avatar.hide_after = float(cfg["hide_after_seconds"])
     capri = Capri(cfg)
-    if cfg.get("ui_mode") != "electron":
-        capri.summon.connect(avatar.summon)
-        capri.vanish.connect(avatar.vanish)
-        capri.mode.connect(avatar.set_mode)
-        capri.subtitle.connect(avatar.set_subtitle)
-        capri.anim.connect(avatar.play_anim)
-        capri.roam.connect(avatar.start_roam)
-        capri.hop.connect(avatar.start_hopping)
-        capri.move_to.connect(avatar.move_to_named)
-        avatar.clicked.connect(capri.call_from_click)
     capri.quit_app.connect(app.quit)
+
+    avatar = None
+    if cfg.get("ui_mode") in ("legacy", "pyside"):
+        try:
+            from avatar import Avatar
+            avatar = Avatar(os.path.join(BASE, "assets"))
+            avatar.hide_after = float(cfg.get("hide_after_seconds", 12))
+            capri.summon.connect(avatar.summon)
+            capri.vanish.connect(avatar.vanish)
+            capri.mode.connect(avatar.set_mode)
+            capri.subtitle.connect(avatar.set_subtitle)
+            capri.anim.connect(avatar.play_anim)
+            capri.roam.connect(avatar.start_roam)
+            capri.hop.connect(avatar.start_hopping)
+            capri.move_to.connect(avatar.move_to_named)
+            avatar.clicked.connect(capri.call_from_click)
+        except Exception:
+            log.exception("Не удалось запустить устаревший PySide-аватар")
 
     def ask_text():
         text, ok = QInputDialog.getText(None, "Капри", "Команда или вопрос:")
@@ -793,7 +799,7 @@ def main():
                       ("MUTE", None),
                       ("Написать команду…", ask_text),
                       ("Проверить ПК", lambda: capri.text_command("проверь компьютер")),
-                      ("Спрятать", avatar.vanish),
+                      ("Спрятать", (lambda: avatar.vanish()) if avatar else (lambda: None)),
                       ("MIC", None),
                       ("Открыть config.json", lambda: os.startfile(CONFIG_PATH)),
                       (None, None),
@@ -839,14 +845,15 @@ def main():
             mute_act.setText("Включить микрофон" if capri.is_muted() else "Отключить микрофон (Mute)")
     menu.aboutToShow.connect(update_tray_menu)
 
-    if cfg.get("ui_mode") != "electron":
+    if cfg.get("ui_mode") in ("legacy", "pyside"):
         tray = QSystemTrayIcon(tray_icon())
         tray.setToolTip("Капри — голосовой ассистент")
         tray.setContextMenu(menu)
         tray.activated.connect(lambda r: capri.call_from_click()
                                if r == QSystemTrayIcon.ActivationReason.Trigger else None)
         tray.show()
-        avatar.menu_requested.connect(lambda pos: menu.popup(pos))
+        if avatar:
+            avatar.menu_requested.connect(lambda pos: menu.popup(pos))
 
     capri.start()
     sys.exit(app.exec())
