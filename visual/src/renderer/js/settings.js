@@ -1156,7 +1156,7 @@ function filterSites(query) {
 function populateSystem() {
   document.getElementById('link-github-capri')?.addEventListener('click', (e) => {
     e.preventDefault();
-    window.host?.openSite?.('https://github.com/Mintermonde/capricorn_v3');
+    window.host?.openSite?.('https://github.com/Mintermonde/capricorn_v4');
   });
 
   document.getElementById('link-github-desktop')?.addEventListener('click', (e) => {
